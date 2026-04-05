@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Resto Nusantara - Attendance Log</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-tertiary-fixed": "#111c2d",
+                    "surface-container-high": "#e8e8e7",
+                    "on-secondary-fixed-variant": "#005236",
+                    "secondary-fixed": "#6ffbbe",
+                    "background": "#f9f9f8",
+                    "surface-dim": "#dadad9",
+                    "on-error": "#ffffff",
+                    "on-surface-variant": "#534434",
+                    "on-secondary-fixed": "#002113",
+                    "on-primary-fixed": "#2a1700",
+                    "on-background": "#1a1c1c",
+                    "on-tertiary": "#ffffff",
+                    "on-primary-container": "#613b00",
+                    "primary-container": "#f59e0b",
+                    "secondary": "#006c49",
+                    "on-tertiary-fixed-variant": "#3c475a",
+                    "on-error-container": "#93000a",
+                    "surface-container-lowest": "#ffffff",
+                    "error-container": "#ffdad6",
+                    "error": "#ba1a1a",
+                    "tertiary": "#545f73",
+                    "secondary-fixed-dim": "#4edea3",
+                    "primary-fixed-dim": "#ffb95f",
+                    "primary": "#855300",
+                    "inverse-on-surface": "#f1f1f0",
+                    "secondary-container": "#6cf8bb",
+                    "outline": "#867461",
+                    "inverse-surface": "#2f3130",
+                    "surface-bright": "#f9f9f8",
+                    "surface-container": "#eeeeed",
+                    "tertiary-container": "#a6b1c8",
+                    "on-tertiary-container": "#394457",
+                    "tertiary-fixed": "#d8e3fb",
+                    "inverse-primary": "#ffb95f",
+                    "on-primary-fixed-variant": "#653e00",
+                    "surface": "#f9f9f8",
+                    "on-primary": "#ffffff",
+                    "surface-container-low": "#f3f4f3",
+                    "primary-fixed": "#ffddb8",
+                    "tertiary-fixed-dim": "#bcc7de",
+                    "on-secondary-container": "#00714d",
+                    "on-secondary": "#ffffff",
+                    "surface-tint": "#855300",
+                    "outline-variant": "#d8c3ad",
+                    "surface-container-highest": "#e2e2e2",
+                    "on-surface": "#1a1c1c",
+                    "surface-variant": "#e2e2e2"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Inter"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        }
+      }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-header {
+            background: rgba(249, 249, 248, 0.8);
+            backdrop-filter: blur(20px);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background flex min-h-screen">
+<!-- SideNavBar (The Anchor) -->
+<aside class="h-screen w-64 hidden md:flex flex-col border-r-0 bg-surface sticky top-0 shrink-0">
+<div class="flex flex-col gap-2 p-4 h-full">
+<div class="px-4 py-6 mb-4">
+<h1 class="text-lg font-black text-amber-700 tracking-tighter">Resto Nusantara</h1>
+<p class="text-xs text-zinc-500 font-medium uppercase tracking-widest">Kitchen Ledger</p>
+</div>
+<nav class="flex flex-col gap-1 grow">
+<a class="text-zinc-500 px-4 py-3 hover:text-amber-600 font-medium text-sm transition-transform active:scale-95" href="#">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span>Dashboard</span>
+</div>
+</a>
+<a class="text-zinc-500 px-4 py-3 hover:text-amber-600 font-medium text-sm transition-transform active:scale-95" href="#">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined" data-icon="inventory_2">inventory_2</span>
+<span>Stock Management</span>
+</div>
+</a>
+<a class="text-zinc-500 px-4 py-3 hover:text-amber-600 font-medium text-sm transition-transform active:scale-95" href="#">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined" data-icon="fact_check">fact_check</span>
+<span>Stock Opname</span>
+</div>
+</a>
+<a class="bg-amber-100 text-amber-800 rounded-lg px-4 py-3 font-medium text-sm scale-98 transition-transform" href="#">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined" data-icon="badge" style="font-variation-settings: 'FILL' 1;">badge</span>
+<span>Absensi Staff</span>
+</div>
+</a>
+<a class="text-zinc-500 px-4 py-3 hover:text-amber-600 font-medium text-sm transition-transform active:scale-95" href="#">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined" data-icon="shopping_cart">shopping_cart</span>
+<span>Purchase Orders</span>
+</div>
+</a>
+<a class="text-zinc-500 px-4 py-3 hover:text-amber-600 font-medium text-sm transition-transform active:scale-95" href="#">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined" data-icon="payments">payments</span>
+<span>Finance Report</span>
+</div>
+</a>
+<a class="text-zinc-500 px-4 py-3 hover:text-amber-600 font-medium text-sm transition-transform active:scale-95" href="#">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span>Settings</span>
+</div>
+</a>
+</nav>
+<div class="mt-auto p-4 bg-surface-container rounded-xl">
+<button class="w-full bg-gradient-to-br from-primary to-primary-container text-white py-3 rounded-lg font-bold text-xs uppercase tracking-tight shadow-sm active:scale-95 transition-all">
+                    New Purchase Order
+                </button>
+</div>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="flex-1 flex flex-col min-w-0">
+<!-- TopAppBar (Small/Fixed) -->
+<header class="docked full-width top-0 sticky z-40 bg-surface/80 backdrop-blur-md shadow-sm flex justify-between items-center w-full px-6 py-3">
+<div class="flex items-center gap-4">
+<button class="md:hidden text-zinc-600">
+<span class="material-symbols-outlined" data-icon="menu">menu</span>
+</button>
+<div class="hidden md:flex bg-surface-container rounded-full px-4 py-1.5 items-center gap-2">
+<span class="material-symbols-outlined text-zinc-400 text-lg" data-icon="search">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-sm w-64 placeholder:text-zinc-400" placeholder="Cari staff atau divisi..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="text-zinc-600 hover:bg-amber-50 p-2 rounded-full transition-all active:scale-95">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<div class="h-8 w-8 rounded-full overflow-hidden border-2 border-primary-container">
+<img alt="User Profile Avatar" data-alt="professional portrait of a restaurant manager in a clean white chef uniform smiling warmly" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBVBBUjcBfYh54ITIUCNjztUfz_9Q_f_jyfhBZnO-yWMvjIBtrEnHy1pKp7tOVYEsd2yr-dLQa2u4eZenOrrtJqUW3ApvVhQna5_Fz2_bj9fFx9uZgpWRumPJaX7K9a9A-KZGS8mhLc89zMUyothY0yCQjp9cH9iezo7Wac8iHPuBMhegkD_LagL9DhS7R0iwlFWQiVLJrfODPsRXK9aWQ6SbST93eF8KgAC8qz-5Bvxt92TtCSkJ9GUGp-u1vsLGgcehIxpikjadA4"/>
+</div>
+</div>
+</header>
+<section class="p-6 md:p-10 max-w-7xl mx-auto w-full">
+<!-- Header Editorial Section -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
+<div>
+<h2 class="text-4xl font-extrabold text-on-surface tracking-tight mb-1">Absensi Hari Ini</h2>
+<div class="flex items-center gap-3 text-zinc-500">
+<span class="font-medium text-lg">5 April 2026</span>
+<span class="h-1 w-1 rounded-full bg-zinc-300"></span>
+<span class="text-secondary font-semibold">8 dari 10 staff sudah check-in</span>
+</div>
+</div>
+<div class="flex gap-3">
+<button class="flex items-center gap-2 bg-surface-container-highest px-5 py-2.5 rounded-lg text-sm font-bold text-on-surface transition-all active:scale-95">
+<span class="material-symbols-outlined text-lg" data-icon="tune">tune</span>
+                        Filter
+                    </button>
+<button class="flex items-center gap-2 bg-primary text-on-primary px-5 py-2.5 rounded-lg text-sm font-bold transition-all active:scale-95">
+<span class="material-symbols-outlined text-lg" data-icon="ios_share">ios_share</span>
+                        Export Log
+                    </button>
+</div>
+</div>
+<!-- Bento KPI Grid -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+<div class="bg-surface-container-lowest p-6 rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
+<p class="text-[10px] uppercase font-bold tracking-widest text-zinc-400 mb-2">Hadir</p>
+<div class="flex items-baseline gap-2">
+<span class="text-3xl font-black tracking-tight text-on-surface">8</span>
+<span class="text-xs font-bold text-secondary">80%</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-6 rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.02)] border-l-4 border-amber-500">
+<p class="text-[10px] uppercase font-bold tracking-widest text-zinc-400 mb-2">Telat</p>
+<div class="flex items-baseline gap-2">
+<span class="text-3xl font-black tracking-tight text-on-surface">2</span>
+<span class="text-xs font-bold text-primary">Warning</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-6 rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
+<p class="text-[10px] uppercase font-bold tracking-widest text-zinc-400 mb-2">Belum Check-in</p>
+<div class="flex items-baseline gap-2">
+<span class="text-3xl font-black tracking-tight text-on-surface">2</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-6 rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
+<p class="text-[10px] uppercase font-bold tracking-widest text-zinc-400 mb-2">Luar Radius</p>
+<div class="flex items-baseline gap-2">
+<span class="text-3xl font-black tracking-tight text-on-surface">0</span>
+<span class="text-xs font-bold text-secondary">Safe</span>
+</div>
+</div>
+</div>
+<!-- Attendance Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+<!-- Card 1: Ahmad Fauzi -->
+<div class="group bg-surface-container-low hover:bg-surface-container-lowest transition-all duration-300 rounded-xl p-5 flex flex-col gap-4 active:scale-[0.98]">
+<div class="flex justify-between items-start">
+<div class="flex gap-4">
+<div class="relative">
+<img alt="Ahmad Fauzi" class="w-14 h-14 rounded-full object-cover ring-2 ring-surface-container-highest" data-alt="professional headshot of a middle-aged male warehouse staff in a modern logistics uniform with soft lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAsX-P9AxTflA2zvrEp1pK0xyza_zR-hDlmg3GsVj1EcYPtCSYwrzlBcspVlbl9xoZLgGxh1ALkL211KXRobZX5UfYg-46sIOdfLCKMltWAK7UEUfXDC73ukY6TcfSvcwDtUCoMGO-Kj9fGjo1cifRg4ItI-mlmYQ3AP4QDPvpSQFj6pblf4YGRK3e1Riatsp8_RrOBVyVFLJWxCz8gaR6Luom3me2Jhve9h51lW3g99hsSQ5X9GT_UWwU3UA0j14VJnLG7Od8suVPK"/>
+<span class="absolute bottom-0 right-0 w-4 h-4 bg-secondary border-2 border-white rounded-full"></span>
+</div>
+<div>
+<h3 class="font-bold text-lg text-on-surface">Ahmad Fauzi</h3>
+<p class="text-xs text-zinc-500 font-medium">Staff Gudang</p>
+</div>
+</div>
+<span class="bg-secondary-container text-on-secondary-container text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full">Tepat Waktu</span>
+</div>
+<div class="grid grid-cols-2 gap-4 py-4 border-y border-zinc-200/50">
+<div class="flex flex-col">
+<span class="text-[10px] text-zinc-400 font-bold uppercase">Check-In</span>
+<span class="text-xl font-bold">07:58</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] text-zinc-400 font-bold uppercase">Lokasi</span>
+<span class="text-xs font-medium flex items-center gap-1 text-secondary">
+<span class="material-symbols-outlined text-sm" data-icon="location_on" style="font-variation-settings: 'FILL' 1;">location_on</span>
+                                Dalam Radius (12m)
+                            </span>
+</div>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex -space-x-2">
+<div class="w-24 h-12 rounded-lg bg-zinc-200 overflow-hidden">
+<img alt="Location Map" data-alt="top-down minimalist digital map showing a blue GPS dot inside a glowing green circular radius" data-location="Jakarta" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC7P-sGHSbAjpim9Uone8aZxzyiQNKr3OHlwh6WAhwMJ79BttNTL1zr7JaMZvf_2zGZKACzrzBFN2RvgkWmyyYolHub5bjrcBolLHiSW3F_4s_GSyJT0NlFUttTNY_p98gHw9rEFipsDOjFMqnJ0lU3MqhJ2cn4fgUMdK1wQ6VAjNZGs6KAA_MX7ASlhmCcFtdbS7ok9y_V8WSf-psjy19sJumH7JfEezOU7xhe6tdAAy4AsH4ipQ4IO3lyDAnSNSbUw-tHQdc1ZPfw"/>
+</div>
+</div>
+<button class="text-primary font-bold text-sm hover:underline">Lihat Detail</button>
+</div>
+</div>
+<!-- Card 2: Siti Nurhaliza -->
+<div class="group bg-surface-container-low hover:bg-surface-container-lowest transition-all duration-300 rounded-xl p-5 flex flex-col gap-4 active:scale-[0.98]">
+<div class="flex justify-between items-start">
+<div class="flex gap-4">
+<div class="relative">
+<img alt="Siti Nurhaliza" class="w-14 h-14 rounded-full object-cover ring-2 ring-surface-container-highest" data-alt="portrait of a young female kitchen staff wearing a professional chef hat and apron smiling slightly" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAaPGL43TlnfTizauwJyN9rMniD7YKj-aTOMuMRK0fuBIN2WIAauhOYMaJA9n_GANZoWIeRRQpfnm6paJ9eZn3yTLtKsVHG5lYBylULXLbItDUE85TBJTNMa4OWy-57KyK8v0f5_hCpK0QxpwJQCfbSYL26_P-r4rMcvlqRMC4B-xSu-a1T9bfpH5SCFqJgaW2Hg-kUTmPduom7hQfgbRwvAmOgTkC2yGYm5PX4V-jbt2QrrRPo3eQXWruOmrZRw_wmjvGhaFmUXUo2"/>
+<span class="absolute bottom-0 right-0 w-4 h-4 bg-secondary border-2 border-white rounded-full"></span>
+</div>
+<div>
+<h3 class="font-bold text-lg text-on-surface">Siti Nurhaliza</h3>
+<p class="text-xs text-zinc-500 font-medium">Staff Dapur</p>
+</div>
+</div>
+<span class="bg-secondary-container text-on-secondary-container text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full">Tepat Waktu</span>
+</div>
+<div class="grid grid-cols-2 gap-4 py-4 border-y border-zinc-200/50">
+<div class="flex flex-col">
+<span class="text-[10px] text-zinc-400 font-bold uppercase">Check-In</span>
+<span class="text-xl font-bold">08:05</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] text-zinc-400 font-bold uppercase">Lokasi</span>
+<span class="text-xs font-medium flex items-center gap-1 text-secondary">
+<span class="material-symbols-outlined text-sm" data-icon="location_on" style="font-variation-settings: 'FILL' 1;">location_on</span>
+                                Dalam Radius (45m)
+                            </span>
+</div>
+</div>
+<div class="flex items-center justify-end">
+<button class="text-primary font-bold text-sm hover:underline">Lihat Detail</button>
+</div>
+</div>
+<!-- Card 3: Budi Prakoso (Telat) -->
+<div class="group bg-surface-container-low hover:bg-surface-container-lowest transition-all duration-300 rounded-xl p-5 flex flex-col gap-4 active:scale-[0.98]">
+<div class="flex justify-between items-start">
+<div class="flex gap-4">
+<div class="relative">
+<img alt="Budi Prakoso" class="w-14 h-14 rounded-full object-cover ring-2 ring-surface-container-highest" data-alt="middle aged male manager in formal office attire with a friendly authoritative look" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD8lScCWcCsKTy_kt1-KMpPlZ09rCkOQz0lAFEZ8OdLV2Ez11veYbI7gOW6Xc29ojfLpx82qjrTXzTaFqpcfpKz64wprLAPJK7OT0ReTbOPMvslu2M6V9US9O5AdnfAosV7mbR6EXo65CpLulf4C-GxuF3BvCWTBWQFdtMv37IYT3GCF7hXtCsGQZKsuSOJGlZQFWjURc1YT-2g9_g377MklXSC9tYUnv3cuqBidLvh_n-QapONMMRos93TsD5D8I7vfi-zZO2fW24K"/>
+<span class="absolute bottom-0 right-0 w-4 h-4 bg-amber-500 border-2 border-white rounded-full"></span>
+</div>
+<div>
+<h3 class="font-bold text-lg text-on-surface">Budi Prakoso</h3>
+<p class="text-xs text-zinc-500 font-medium">Manager</p>
+</div>
+</div>
+<span class="bg-error-container text-on-error-container text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full">Telat 7 Menit</span>
+</div>
+<div class="grid grid-cols-2 gap-4 py-4 border-y border-zinc-200/50">
+<div class="flex flex-col">
+<span class="text-[10px] text-zinc-400 font-bold uppercase">Check-In</span>
+<span class="text-xl font-bold text-primary">08:22</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] text-zinc-400 font-bold uppercase">Lokasi</span>
+<span class="text-xs font-medium flex items-center gap-1 text-secondary">
+<span class="material-symbols-outlined text-sm" data-icon="location_on" style="font-variation-settings: 'FILL' 1;">location_on</span>
+                                Dalam Radius (8m)
+                            </span>
+</div>
+</div>
+<div class="flex items-center justify-end">
+<button class="text-primary font-bold text-sm hover:underline">Lihat Detail</button>
+</div>
+</div>
+<!-- Card 4: Dewi Lestari (Belum) -->
+<div class="group bg-surface-container-low hover:bg-surface-container-lowest transition-all duration-300 rounded-xl p-5 flex flex-col gap-4 active:scale-[0.98]">
+<div class="flex justify-between items-start opacity-70">
+<div class="flex gap-4">
+<div class="relative">
+<img alt="Dewi Lestari" class="w-14 h-14 rounded-full object-cover grayscale ring-2 ring-surface-container-highest" data-alt="professional portrait of a young female warehouse supervisor in high-visibility gear with soft studio lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCyNeNxYyO5nDiNVK63zamfImjCQSMSmpNPI6HIttGcafadnxfXwXV5aUk6TH8h09l31LqVxa-fTRAzPaZuCmRpuHiDlZbS80wc-0NK02CW61qPaJt0OuGODpxh0Qp5ITPwOBw8qCjIkdeGIXqquEAXgL5AgxnHWNkihWCh1f1iafnhgyhXJgUwxO4pdDDUDbSwD4hy8XUVxPadNxtsFNRqFPYttzEMWDOizAJi20IPvXnyy1VOooQ5uPq45AtbMHUtjKQATJcgiVyA"/>
+<span class="absolute bottom-0 right-0 w-4 h-4 bg-zinc-400 border-2 border-white rounded-full"></span>
+</div>
+<div>
+<h3 class="font-bold text-lg text-on-surface">Dewi Lestari</h3>
+<p class="text-xs text-zinc-500 font-medium">Staff Gudang</p>
+</div>
+</div>
+<span class="bg-surface-container-highest text-zinc-500 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full">Menunggu</span>
+</div>
+<div class="py-4 border-y border-zinc-200/50">
+<p class="text-sm font-medium text-zinc-400 italic">Belum melakukan check-in hari ini</p>
+</div>
+<div class="flex items-center justify-end">
+<button class="text-zinc-400 font-bold text-sm cursor-not-allowed">Ingatkan Staff</button>
+</div>
+</div>
+<!-- Card 5: Rudi Hartono (Telat Parah) -->
+<div class="group bg-surface-container-low hover:bg-surface-container-lowest transition-all duration-300 rounded-xl p-5 flex flex-col gap-4 active:scale-[0.98]">
+<div class="flex justify-between items-start">
+<div class="flex gap-4">
+<div class="relative">
+<img alt="Rudi Hartono" class="w-14 h-14 rounded-full object-cover ring-2 ring-surface-container-highest" data-alt="portrait of a male kitchen worker in a black apron with a focused expression under kitchen lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA0yZcmrbqMozomRoya2w7RNzCAcX-_rC9fKG7QWDtF-7frmf1TTcVNByyudLtkE-sCrA_focGD8ZqpzGkVcgBHcEufJTM8zGMLZbmTh2l2d4RRYasCrmzqGlddiF_rDiLucfo5cyZw5IJI4bqsIp_M9Kl_Eh2BBW7HeVb6tYpfLgfFGeUNne3zli5-IeZ_4Bxsz3RsReYBlX7_Us-4mfUKZ7tjHfi6TJUqMnb9j_TDvM4se0hVm_BcbzhBMGcWiMWOFPkzOsGePxVp"/>
+<span class="absolute bottom-0 right-0 w-4 h-4 bg-amber-500 border-2 border-white rounded-full"></span>
+</div>
+<div>
+<h3 class="font-bold text-lg text-on-surface">Rudi Hartono</h3>
+<p class="text-xs text-zinc-500 font-medium">Staff Dapur</p>
+</div>
+</div>
+<span class="bg-error-container text-on-error-container text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full">Telat 30 Menit</span>
+</div>
+<div class="grid grid-cols-2 gap-4 py-4 border-y border-zinc-200/50">
+<div class="flex flex-col">
+<span class="text-[10px] text-zinc-400 font-bold uppercase">Check-In</span>
+<span class="text-xl font-bold text-error">08:45</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] text-zinc-400 font-bold uppercase">Lokasi</span>
+<span class="text-xs font-medium flex items-center gap-1 text-secondary">
+<span class="material-symbols-outlined text-sm" data-icon="location_on" style="font-variation-settings: 'FILL' 1;">location_on</span>
+                                Dalam Radius (31m)
+                            </span>
+</div>
+</div>
+<div class="flex items-center justify-end">
+<button class="text-primary font-bold text-sm hover:underline">Lihat Detail</button>
+</div>
+</div>
+</div>
+</section>
+<!-- Bottom Padding for Mobile Nav -->
+<div class="h-24 md:hidden"></div>
+</main>
+<!-- BottomNavBar (Mobile Only) -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center px-4 pb-4 pt-2 bg-surface/90 backdrop-blur-xl md:hidden z-50 rounded-t-2xl shadow-[0_-4px_12px_rgba(0,0,0,0.05)] border-t border-zinc-200/20">
+<a class="flex flex-col items-center justify-center text-zinc-400 p-2" href="#">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="text-[10px] uppercase tracking-widest font-bold">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-zinc-400 p-2" href="#">
+<span class="material-symbols-outlined" data-icon="inventory_2">inventory_2</span>
+<span class="text-[10px] uppercase tracking-widest font-bold">Stock</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-amber-500 text-white rounded-xl p-2 scale-110 -translate-y-2 transition-all cubic-bezier(0.4,0,0.2,1)" href="#">
+<span class="material-symbols-outlined" data-icon="badge" style="font-variation-settings: 'FILL' 1;">badge</span>
+<span class="text-[10px] uppercase tracking-widest font-bold">Staff</span>
+</a>
+<a class="flex flex-col items-center justify-center text-zinc-400 p-2" href="#">
+<span class="material-symbols-outlined" data-icon="fact_check">fact_check</span>
+<span class="text-[10px] uppercase tracking-widest font-bold">Opname</span>
+</a>
+<a class="flex flex-col items-center justify-center text-zinc-400 p-2" href="#">
+<span class="material-symbols-outlined" data-icon="menu">menu</span>
+<span class="text-[10px] uppercase tracking-widest font-bold">More</span>
+</a>
+</nav>
+</body></html>

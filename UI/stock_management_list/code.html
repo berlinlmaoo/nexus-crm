@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Resto Nusantara - Stock Management</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-tertiary-fixed": "#111c2d",
+                        "surface-container-high": "#e8e8e7",
+                        "on-secondary-fixed-variant": "#005236",
+                        "secondary-fixed": "#6ffbbe",
+                        "background": "#f9f9f8",
+                        "surface-dim": "#dadad9",
+                        "on-error": "#ffffff",
+                        "on-surface-variant": "#534434",
+                        "on-secondary-fixed": "#002113",
+                        "on-primary-fixed": "#2a1700",
+                        "on-background": "#1a1c1c",
+                        "on-tertiary": "#ffffff",
+                        "on-primary-container": "#613b00",
+                        "primary-container": "#f59e0b",
+                        "secondary": "#006c49",
+                        "on-tertiary-fixed-variant": "#3c475a",
+                        "on-error-container": "#93000a",
+                        "surface-container-lowest": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "error": "#ba1a1a",
+                        "tertiary": "#545f73",
+                        "secondary-fixed-dim": "#4edea3",
+                        "primary-fixed-dim": "#ffb95f",
+                        "primary": "#855300",
+                        "inverse-on-surface": "#f1f1f0",
+                        "secondary-container": "#6cf8bb",
+                        "outline": "#867461",
+                        "inverse-surface": "#2f3130",
+                        "surface-bright": "#f9f9f8",
+                        "surface-container": "#eeeeed",
+                        "tertiary-container": "#a6b1c8",
+                        "on-tertiary-container": "#394457",
+                        "tertiary-fixed": "#d8e3fb",
+                        "inverse-primary": "#ffb95f",
+                        "on-primary-fixed-variant": "#653e00",
+                        "surface": "#f9f9f8",
+                        "on-primary": "#ffffff",
+                        "surface-container-low": "#f3f4f3",
+                        "primary-fixed": "#ffddb8",
+                        "tertiary-fixed-dim": "#bcc7de",
+                        "on-secondary-container": "#00714d",
+                        "on-secondary": "#ffffff",
+                        "surface-tint": "#855300",
+                        "outline-variant": "#d8c3ad",
+                        "surface-container-highest": "#e2e2e2",
+                        "on-surface": "#1a1c1c",
+                        "surface-variant": "#e2e2e2"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Inter"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-header {
+            background: rgba(249, 249, 248, 0.8);
+            backdrop-filter: blur(20px);
+        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-background text-on-surface min-h-screen flex">
+<!-- Sidebar (SideNavBar Shared Component) -->
+<aside class="h-screen w-64 hidden md:flex flex-col bg-surface border-r-0 sticky top-0 z-50">
+<div class="flex flex-col gap-2 p-4 h-full">
+<div class="flex items-center gap-3 px-4 py-6">
+<div class="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined text-white" data-icon="restaurant">restaurant</span>
+</div>
+<div>
+<h1 class="text-lg font-black text-amber-700 tracking-tighter">Resto Nusantara</h1>
+<p class="text-[10px] uppercase tracking-widest text-zinc-500 font-bold">Kitchen Ledger</p>
+</div>
+</div>
+<nav class="flex-1 flex flex-col gap-1 mt-4">
+<a class="text-zinc-500 px-4 py-3 hover:text-amber-600 font-medium text-sm flex items-center gap-3 transition-transform scale-98" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+                    Dashboard
+                </a>
+<a class="bg-amber-100 text-amber-800 rounded-lg px-4 py-3 font-medium text-sm flex items-center gap-3 transition-transform scale-98" href="#">
+<span class="material-symbols-outlined" data-icon="inventory_2" style="font-variation-settings: 'FILL' 1;">inventory_2</span>
+                    Stock Management
+                </a>
+<a class="text-zinc-500 px-4 py-3 hover:text-amber-600 font-medium text-sm flex items-center gap-3 transition-transform scale-98" href="#">
+<span class="material-symbols-outlined" data-icon="fact_check">fact_check</span>
+                    Stock Opname
+                </a>
+<a class="text-zinc-500 px-4 py-3 hover:text-amber-600 font-medium text-sm flex items-center gap-3 transition-transform scale-98" href="#">
+<span class="material-symbols-outlined" data-icon="badge">badge</span>
+                    Absensi Staff
+                </a>
+<a class="text-zinc-500 px-4 py-3 hover:text-amber-600 font-medium text-sm flex items-center gap-3 transition-transform scale-98" href="#">
+<span class="material-symbols-outlined" data-icon="shopping_cart">shopping_cart</span>
+                    Purchase Orders
+                </a>
+<a class="text-zinc-500 px-4 py-3 hover:text-amber-600 font-medium text-sm flex items-center gap-3 transition-transform scale-98" href="#">
+<span class="material-symbols-outlined" data-icon="payments">payments</span>
+                    Finance Report
+                </a>
+<div class="mt-auto pt-4 border-t border-surface-container">
+<a class="text-zinc-500 px-4 py-3 hover:text-amber-600 font-medium text-sm flex items-center gap-3 transition-transform scale-98" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+                        Settings
+                    </a>
+</div>
+</nav>
+<button class="mt-4 w-full bg-gradient-to-br from-primary to-primary-container text-white font-bold py-3 px-4 rounded-xl shadow-md flex items-center justify-center gap-2 transition-all active:scale-95">
+<span class="material-symbols-outlined text-sm" data-icon="add">add</span>
+                New Purchase Order
+            </button>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col min-w-0 bg-background pb-20 md:pb-0">
+<!-- Top Navigation Bar (Mobile / Responsive) -->
+<header class="sticky top-0 z-40 glass-header flex justify-between items-center w-full px-6 py-4 shadow-sm">
+<div class="flex items-center gap-4">
+<div class="md:hidden">
+<span class="material-symbols-outlined text-zinc-600" data-icon="menu">menu</span>
+</div>
+<div>
+<h2 class="text-xl font-bold text-amber-700 tracking-tight font-headline">Stock Management</h2>
+<p class="text-xs text-tertiary">111 produk aktif di 17 kategori</p>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<div class="hidden sm:flex items-center gap-2 bg-surface-container rounded-full px-4 py-2 text-zinc-500">
+<span class="material-symbols-outlined text-lg" data-icon="search">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-sm w-48" placeholder="Cari produk atau kode..." type="text"/>
+</div>
+<div class="flex items-center gap-2">
+<button class="p-2 text-zinc-600 hover:bg-amber-50 rounded-full transition-colors">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<img alt="User Profile Avatar" class="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm" data-alt="Close up portrait of a professional chef in white uniform smiling warmly in a kitchen setting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA1X2vUgf0fvZKBPjEYfF7xS_QUIdwsLwzpnJXpI5pAOC_I4ajQty-GQL51R5Y_ewrcktB6LoIdVK_lLP11lRJzHMR6jZlWlimipCAYhHoxbRjPkXPEuM46RwhhAkcCjIQ7mT3qjck8ny_UFrMXZHm6FYoJ1Fz8vIPOMXihSHGCCIYbkK6XeN9H1YmRvJFdmxTT9ZVUg3qsHd36TSa3eCaMFto6WzkIJ6X4w2WEhWFpC80yp_kgQfJZi7CjsDXMggMFpuZMRJJJifWg"/>
+</div>
+</div>
+</header>
+<div class="p-6 space-y-6 max-w-7xl mx-auto w-full">
+<!-- Hero Action Section -->
+<section class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+<div class="flex gap-3 w-full sm:w-auto">
+<button class="flex-1 sm:flex-none px-6 py-3 bg-gradient-to-br from-primary to-primary-container text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-primary/20 active:scale-95 transition-transform">
+<span class="material-symbols-outlined" data-icon="add_circle">add_circle</span>
+                        Tambah Produk
+                    </button>
+<button class="flex-1 sm:flex-none px-6 py-3 bg-surface-container-lowest border border-outline-variant/30 text-on-surface rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-surface-container transition-colors active:scale-95">
+<span class="material-symbols-outlined" data-icon="barcode_scanner">barcode_scanner</span>
+                        Scan Barcode
+                    </button>
+</div>
+<div class="flex items-center bg-surface-container p-1 rounded-xl">
+<button class="p-2 rounded-lg bg-white shadow-sm text-primary">
+<span class="material-symbols-outlined" data-icon="grid_view">grid_view</span>
+</button>
+<button class="p-2 rounded-lg text-zinc-400">
+<span class="material-symbols-outlined" data-icon="table_rows">table_rows</span>
+</button>
+</div>
+</section>
+<!-- Summary Bento Grid -->
+<section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+<div class="bg-surface-container-lowest p-5 rounded-2xl shadow-sm border border-surface-container flex flex-col gap-1 overflow-hidden relative group">
+<div class="absolute -right-4 -top-4 w-24 h-24 bg-surface-container rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<p class="text-tertiary text-xs font-bold uppercase tracking-widest">Total Items</p>
+<h3 class="text-3xl font-black tracking-tight">111</h3>
+<p class="text-[10px] text-secondary font-semibold mt-1">↑ 4 produk bulan ini</p>
+</div>
+<div class="bg-surface-container-lowest p-5 rounded-2xl shadow-sm border border-surface-container flex flex-col gap-1">
+<p class="text-tertiary text-xs font-bold uppercase tracking-widest">Total Value</p>
+<h3 class="text-3xl font-black tracking-tight text-primary">Rp 16.8M</h3>
+<p class="text-[10px] text-tertiary font-medium mt-1">Calculated from 111 SKU</p>
+</div>
+<div class="bg-amber-50 dark:bg-amber-900/10 p-5 rounded-2xl shadow-sm border border-amber-200/50 flex flex-col gap-1">
+<p class="text-amber-700 text-xs font-bold uppercase tracking-widest">Low Stock</p>
+<h3 class="text-3xl font-black tracking-tight text-amber-700">12</h3>
+<p class="text-[10px] text-amber-600/80 font-medium mt-1 italic">Perlu segera dipesan</p>
+</div>
+<div class="bg-error-container/30 p-5 rounded-2xl shadow-sm border border-error-container flex flex-col gap-1">
+<p class="text-on-error-container text-xs font-bold uppercase tracking-widest">Habis</p>
+<h3 class="text-3xl font-black tracking-tight text-error">8</h3>
+<p class="text-[10px] text-error/80 font-medium mt-1">Out of Stock</p>
+</div>
+</section>
+<!-- Filter Bar -->
+<section class="bg-surface-container-low p-4 rounded-2xl flex flex-col lg:flex-row gap-4 items-center">
+<div class="w-full lg:w-auto flex-1 flex flex-wrap gap-2">
+<button class="px-4 py-2 rounded-full bg-primary text-white text-xs font-bold shadow-md">Semua</button>
+<button class="px-4 py-2 rounded-full bg-white text-zinc-600 text-xs font-bold hover:bg-surface-container transition-colors">Stok OK</button>
+<button class="px-4 py-2 rounded-full bg-white text-zinc-600 text-xs font-bold hover:bg-surface-container transition-colors">Low Stock</button>
+<button class="px-4 py-2 rounded-full bg-white text-zinc-600 text-xs font-bold hover:bg-surface-container transition-colors">Habis</button>
+</div>
+<div class="w-full lg:w-auto flex gap-3">
+<select class="bg-white border-none rounded-xl text-sm font-medium focus:ring-primary/20 px-4 py-2">
+<option>Semua Kategori</option>
+<option>Protein</option>
+<option>Dairy</option>
+<option>Dry Goods</option>
+</select>
+<button class="p-2 bg-white rounded-xl text-zinc-600 hover:text-primary transition-colors border-none shadow-sm">
+<span class="material-symbols-outlined" data-icon="filter_list">filter_list</span>
+</button>
+</div>
+</section>
+<!-- Inventory Table -->
+<section class="bg-surface-container-lowest rounded-3xl overflow-hidden shadow-sm border border-surface-container">
+<div class="overflow-x-auto no-scrollbar">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low text-tertiary uppercase text-[10px] font-black tracking-widest">
+<th class="px-6 py-4">Kode</th>
+<th class="px-6 py-4">Nama Produk</th>
+<th class="px-6 py-4">Kategori</th>
+<th class="px-6 py-4">Satuan</th>
+<th class="px-6 py-4">Harga</th>
+<th class="px-6 py-4 text-center">Stok / Min</th>
+<th class="px-6 py-4">Nilai</th>
+<th class="px-6 py-4">Status</th>
+<th class="px-6 py-4 text-right">Aksi</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container text-sm">
+<!-- Item 1 -->
+<tr class="hover:bg-amber-50/30 transition-colors group">
+<td class="px-6 py-5 font-mono text-xs text-zinc-400">BB-001</td>
+<td class="px-6 py-5 font-bold text-on-surface">BERAS 10kg</td>
+<td class="px-6 py-5">
+<span class="px-2 py-1 bg-surface-container rounded text-[10px] font-bold text-tertiary">Beras &amp; Karbo</span>
+</td>
+<td class="px-6 py-5">Sak</td>
+<td class="px-6 py-5">Rp 178.000</td>
+<td class="px-6 py-5 text-center">
+<span class="font-black text-amber-600">2</span> <span class="text-zinc-300 mx-1">/</span> <span class="text-zinc-400">3</span>
+</td>
+<td class="px-6 py-5 font-semibold">Rp 356.000</td>
+<td class="px-6 py-5">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 uppercase">
+<span class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span> LOW
+                                    </span>
+</td>
+<td class="px-6 py-5 text-right space-x-2">
+<button class="p-2 text-zinc-400 hover:text-primary transition-colors opacity-0 group-hover:opacity-100"><span class="material-symbols-outlined text-lg" data-icon="visibility">visibility</span></button>
+<button class="p-2 text-zinc-400 hover:text-primary transition-colors opacity-0 group-hover:opacity-100"><span class="material-symbols-outlined text-lg" data-icon="edit">edit</span></button>
+</td>
+</tr>
+<!-- Item 2 -->
+<tr class="hover:bg-amber-50/30 transition-colors group">
+<td class="px-6 py-5 font-mono text-xs text-zinc-400">BB-002</td>
+<td class="px-6 py-5 font-bold text-on-surface">MINYAK GORENG</td>
+<td class="px-6 py-5">
+<span class="px-2 py-1 bg-surface-container rounded text-[10px] font-bold text-tertiary">Minyak &amp; Cuka</span>
+</td>
+<td class="px-6 py-5">pcs</td>
+<td class="px-6 py-5">Rp 32.000</td>
+<td class="px-6 py-5 text-center">
+<span class="font-black text-amber-600">4</span> <span class="text-zinc-300 mx-1">/</span> <span class="text-zinc-400">5</span>
+</td>
+<td class="px-6 py-5 font-semibold">Rp 128.000</td>
+<td class="px-6 py-5">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 uppercase">
+<span class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span> LOW
+                                    </span>
+</td>
+<td class="px-6 py-5 text-right space-x-2">
+<button class="p-2 text-zinc-400 hover:text-primary transition-colors opacity-0 group-hover:opacity-100"><span class="material-symbols-outlined text-lg" data-icon="visibility">visibility</span></button>
+<button class="p-2 text-zinc-400 hover:text-primary transition-colors opacity-0 group-hover:opacity-100"><span class="material-symbols-outlined text-lg" data-icon="edit">edit</span></button>
+</td>
+</tr>
+<!-- Item 3 -->
+<tr class="hover:bg-amber-50/30 transition-colors group">
+<td class="px-6 py-5 font-mono text-xs text-zinc-400">BB-045</td>
+<td class="px-6 py-5 font-bold text-on-surface">DENALI VANILA</td>
+<td class="px-6 py-5">
+<span class="px-2 py-1 bg-surface-container rounded text-[10px] font-bold text-tertiary">Syrup</span>
+</td>
+<td class="px-6 py-5">botol</td>
+<td class="px-6 py-5">Rp 135.000</td>
+<td class="px-6 py-5 text-center">
+<span class="font-black text-amber-600">1</span> <span class="text-zinc-300 mx-1">/</span> <span class="text-zinc-400">2</span>
+</td>
+<td class="px-6 py-5 font-semibold">Rp 135.000</td>
+<td class="px-6 py-5">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 uppercase">
+<span class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span> LOW
+                                    </span>
+</td>
+<td class="px-6 py-5 text-right space-x-2">
+<button class="p-2 text-zinc-400 hover:text-primary transition-colors opacity-0 group-hover:opacity-100"><span class="material-symbols-outlined text-lg" data-icon="visibility">visibility</span></button>
+<button class="p-2 text-zinc-400 hover:text-primary transition-colors opacity-0 group-hover:opacity-100"><span class="material-symbols-outlined text-lg" data-icon="edit">edit</span></button>
+</td>
+</tr>
+<!-- Item 4 -->
+<tr class="hover:bg-amber-50/30 transition-colors group">
+<td class="px-6 py-5 font-mono text-xs text-zinc-400">BB-083</td>
+<td class="px-6 py-5 font-bold text-on-surface">IKAN KAKAP M</td>
+<td class="px-6 py-5">
+<span class="px-2 py-1 bg-surface-container rounded text-[10px] font-bold text-tertiary">Protein Seafood</span>
+</td>
+<td class="px-6 py-5">pcs</td>
+<td class="px-6 py-5">Rp 45.000</td>
+<td class="px-6 py-5 text-center">
+<span class="font-black text-secondary">67</span> <span class="text-zinc-300 mx-1">/</span> <span class="text-zinc-400">10</span>
+</td>
+<td class="px-6 py-5 font-semibold">Rp 3.015.000</td>
+<td class="px-6 py-5">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-secondary-container/20 text-on-secondary-container uppercase">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary mr-1.5"></span> OK
+                                    </span>
+</td>
+<td class="px-6 py-5 text-right space-x-2">
+<button class="p-2 text-zinc-400 hover:text-primary transition-colors opacity-0 group-hover:opacity-100"><span class="material-symbols-outlined text-lg" data-icon="visibility">visibility</span></button>
+<button class="p-2 text-zinc-400 hover:text-primary transition-colors opacity-0 group-hover:opacity-100"><span class="material-symbols-outlined text-lg" data-icon="edit">edit</span></button>
+</td>
+</tr>
+<!-- Item 5 -->
+<tr class="hover:bg-amber-50/30 transition-colors group">
+<td class="px-6 py-5 font-mono text-xs text-zinc-400">BB-091</td>
+<td class="px-6 py-5 font-bold text-on-surface">AYAM 0,9 KG</td>
+<td class="px-6 py-5">
+<span class="px-2 py-1 bg-surface-container rounded text-[10px] font-bold text-tertiary">Protein Daging</span>
+</td>
+<td class="px-6 py-5">pcs</td>
+<td class="px-6 py-5">Rp 49.000</td>
+<td class="px-6 py-5 text-center">
+<span class="font-black text-secondary">20</span> <span class="text-zinc-300 mx-1">/</span> <span class="text-zinc-400">5</span>
+</td>
+<td class="px-6 py-5 font-semibold">Rp 980.000</td>
+<td class="px-6 py-5">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-secondary-container/20 text-on-secondary-container uppercase">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary mr-1.5"></span> OK
+                                    </span>
+</td>
+<td class="px-6 py-5 text-right space-x-2">
+<button class="p-2 text-zinc-400 hover:text-primary transition-colors opacity-0 group-hover:opacity-100"><span class="material-symbols-outlined text-lg" data-icon="visibility">visibility</span></button>
+<button class="p-2 text-zinc-400 hover:text-primary transition-colors opacity-0 group-hover:opacity-100"><span class="material-symbols-outlined text-lg" data-icon="edit">edit</span></button>
+</td>
+</tr>
+<!-- Item 6 -->
+<tr class="hover:bg-amber-50/30 transition-colors group">
+<td class="px-6 py-5 font-mono text-xs text-zinc-400">BB-036</td>
+<td class="px-6 py-5 font-bold text-on-surface">SUSU UHT</td>
+<td class="px-6 py-5">
+<span class="px-2 py-1 bg-surface-container rounded text-[10px] font-bold text-tertiary">Susu &amp; Dairy</span>
+</td>
+<td class="px-6 py-5">pcs</td>
+<td class="px-6 py-5">Rp 19.000</td>
+<td class="px-6 py-5 text-center">
+<span class="font-black text-error">0</span> <span class="text-zinc-300 mx-1">/</span> <span class="text-zinc-400">2</span>
+</td>
+<td class="px-6 py-5 font-semibold">Rp 0</td>
+<td class="px-6 py-5">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-error-container text-on-error-container uppercase">
+<span class="w-1.5 h-1.5 rounded-full bg-error mr-1.5"></span> HABIS
+                                    </span>
+</td>
+<td class="px-6 py-5 text-right space-x-2">
+<button class="p-2 text-zinc-400 hover:text-primary transition-colors opacity-0 group-hover:opacity-100"><span class="material-symbols-outlined text-lg" data-icon="visibility">visibility</span></button>
+<button class="p-2 text-zinc-400 hover:text-primary transition-colors opacity-0 group-hover:opacity-100"><span class="material-symbols-outlined text-lg" data-icon="edit">edit</span></button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination -->
+<div class="px-6 py-4 bg-surface-container-low flex justify-between items-center border-t border-surface-container">
+<p class="text-xs text-tertiary font-medium">1-20 dari 111 produk</p>
+<div class="flex gap-1">
+<button class="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-400 hover:bg-white transition-colors">
+<span class="material-symbols-outlined text-sm" data-icon="chevron_left">chevron_left</span>
+</button>
+<button class="w-8 h-8 rounded-lg flex items-center justify-center bg-white text-primary shadow-sm font-bold text-xs">1</button>
+<button class="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-400 hover:bg-white transition-colors font-bold text-xs">2</button>
+<button class="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-400 hover:bg-white transition-colors font-bold text-xs">3</button>
+<button class="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-400 hover:bg-white transition-colors">
+<span class="material-symbols-outlined text-sm" data-icon="chevron_right">chevron_right</span>
+</button>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- Bottom Navigation (BottomNavBar Shared Component) -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center px-4 pb-4 pt-2 bg-surface/90 backdrop-blur-xl md:hidden z-50 rounded-t-2xl shadow-[0_-4px_12px_rgba(0,0,0,0.05)] border-t border-zinc-200/20">
+<a class="flex flex-col items-center justify-center text-zinc-400 p-2" href="#">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="text-[10px] uppercase tracking-widest font-bold">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-amber-500 text-white rounded-xl p-2 scale-110 -translate-y-2 transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="inventory_2" style="font-variation-settings: 'FILL' 1;">inventory_2</span>
+<span class="text-[10px] uppercase tracking-widest font-bold">Stock</span>
+</a>
+<a class="flex flex-col items-center justify-center text-zinc-400 p-2" href="#">
+<span class="material-symbols-outlined" data-icon="fact_check">fact_check</span>
+<span class="text-[10px] uppercase tracking-widest font-bold">Opname</span>
+</a>
+<a class="flex flex-col items-center justify-center text-zinc-400 p-2" href="#">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+<span class="text-[10px] uppercase tracking-widest font-bold">Staff</span>
+</a>
+<a class="flex flex-col items-center justify-center text-zinc-400 p-2" href="#">
+<span class="material-symbols-outlined" data-icon="menu">menu</span>
+<span class="text-[10px] uppercase tracking-widest font-bold">More</span>
+</a>
+</nav>
+<!-- Contextual FAB (Restricted to Home/Dashboard as per instructions, suppressed here) -->
+</body></html>

@@ -9,7 +9,7 @@ import { id } from "date-fns/locale";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuGroup } from "@/components/ui/dropdown-menu";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Sidebar } from "./Sidebar";
 import { toast } from "sonner";
 import { useRef, useState, useEffect } from "react";
@@ -28,7 +28,13 @@ export function Header({ onMenuClick, user, restaurantName, logoUrl }: HeaderPro
   const [isUploading, setIsUploading] = useState(false);
   const [localPhoto, setLocalPhoto] = useState(user?.photo_url);
   const [notifs, setNotifs] = useState<any[]>([]);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const currentDate = format(new Date(), "EEEE, d MMMM yyyy", { locale: id });
+
+  // Close mobile menu when pathname changes
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [router]);
 
   useEffect(() => {
     fetch('/api/notifications')
@@ -109,10 +115,10 @@ export function Header({ onMenuClick, user, restaurantName, logoUrl }: HeaderPro
         onChange={handleFileChange} 
       />
       <div className="flex items-center gap-4">
-        <Sheet>
-          <SheetTrigger render={<Button variant="ghost" size="icon" className="md:hidden" />}>
-            <Menu className="h-5 w-5" />
-          </SheetTrigger>
+        <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setIsMobileMenuOpen(true)}>
+          <Menu className="h-5 w-5" />
+        </Button>
+        <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
           <SheetContent side="left" className="p-0 border-none w-64 max-w-[80vw]">
             <Sidebar user={user} restaurantName={restaurantName} logoUrl={logoUrl} />
           </SheetContent>

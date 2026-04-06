@@ -22,6 +22,15 @@ export default async function DashboardLayout({
     .eq("id", session.user.id)
     .single();
 
+  // Fetch restaurant config
+  const { data: config } = await supabase
+    .from("restaurant_config")
+    .select("restaurant_name, logo_url")
+    .single();
+
+  const restaurantName = config?.restaurant_name || "KITCHEN LEDGER";
+  const logoUrl = config?.logo_url || null;
+
   // Middleware already handles /waiting-approval redirect, but as double safety:
   if (!profile?.role) {
     // If we're not already on the waiting-approval page (handled by layout below)
@@ -31,7 +40,7 @@ export default async function DashboardLayout({
   return (
     <div className="flex h-screen overflow-hidden bg-stone-50/30">
       <div className="hidden md:flex flex-shrink-0">
-        <Sidebar user={profile} />
+        <Sidebar user={profile} restaurantName={restaurantName} logoUrl={logoUrl} />
       </div>
 
       <div className="flex flex-1 flex-col overflow-hidden">

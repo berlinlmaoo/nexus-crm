@@ -18,9 +18,11 @@ import { createClient } from "@/lib/supabase/client";
 
 interface SidebarProps {
   user?: any;
+  restaurantName?: string;
+  logoUrl?: string;
 }
 
-export function Sidebar({ user }: SidebarProps) {
+export function Sidebar({ user, restaurantName = "KITCHEN LEDGER", logoUrl }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
@@ -34,6 +36,7 @@ export function Sidebar({ user }: SidebarProps) {
     { name: "Absensi Staff", href: "/attendance", icon: UsersIcon, roles: ["OWNER", "MANAGER", "STAFF_GUDANG", "STAFF_DAPUR"] },
     { name: "Purchase Orders", href: "/purchasing", icon: ShoppingCart, roles: ["OWNER", "MANAGER", "STAFF_GUDANG"] },
     { name: "Finance Report", href: "/report", icon: TrendingUp, roles: ["OWNER"] },
+    { name: "User Management", href: "/users", icon: UsersIcon, roles: ["OWNER"] },
     { name: "Settings", href: "/settings", icon: Settings, roles: ["OWNER"] },
   ];
 
@@ -49,12 +52,16 @@ export function Sidebar({ user }: SidebarProps) {
   return (
     <div className="flex h-full w-64 flex-col border-r bg-stone-50/50 backdrop-blur-xl">
       <div className="flex h-16 shrink-0 items-center px-6 gap-3 border-b border-stone-100">
-        <div className="bg-gradient-to-br from-amber-500 to-amber-600 text-white p-1.5 rounded-lg shadow-sm">
-          <Pizza className="h-5 w-5" />
-        </div>
+        {logoUrl ? (
+          <img src={logoUrl} alt="Logo" className="h-9 w-9 object-contain rounded-lg shadow-sm" />
+        ) : (
+          <div className="bg-gradient-to-br from-amber-500 to-amber-600 text-white p-1.5 rounded-lg shadow-sm">
+            <Pizza className="h-5 w-5" />
+          </div>
+        )}
         <div>
           <h1 className="text-lg font-bold leading-none text-stone-900 tracking-tight">NEXUS CRM</h1>
-          <p className="text-[10px] text-stone-500 font-medium tracking-widest mt-0.5">KITCHEN LEDGER</p>
+          <p className="text-[10px] text-stone-500 font-medium tracking-widest mt-0.5 uppercase">{restaurantName}</p>
         </div>
       </div>
       <div className="flex-1 overflow-y-auto py-6">

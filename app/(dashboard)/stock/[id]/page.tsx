@@ -28,10 +28,15 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
             <ArrowLeft className="h-5 w-5" />
           </Button>
         </Link>
-        <div>
+        <div className="flex-1">
           <h2 className="text-2xl font-bold tracking-tight text-stone-900">Detail & Update Stok</h2>
           <p className="text-sm text-stone-500 mt-1">Review informasi master barang dan tambahkan riwayat stok.</p>
         </div>
+        <Link href={`/stock/${product.id}/print`}>
+          <Button variant="outline" className="font-bold border-amber-200 text-amber-600 hover:bg-amber-50">
+            🖨️ Cetak Label Barcode
+          </Button>
+        </Link>
       </div>
 
       <div className="grid md:grid-cols-3 gap-6">

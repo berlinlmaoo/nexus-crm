@@ -12,6 +12,7 @@ import { toast } from "sonner";
 type Config = {
   id?: string;
   restaurant_name: string;
+  logo_url: string;
   office_lat: string;
   office_lng: string;
   radius_meter: string;
@@ -22,6 +23,7 @@ type Config = {
 
 const defaultConfig: Config = {
   restaurant_name: '',
+  logo_url: '',
   office_lat: '',
   office_lng: '',
   radius_meter: '100',
@@ -57,11 +59,16 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   );
 }
 
+import { createClient } from "@/lib/supabase/client";
+
 export default function SettingsPage() {
   const [config, setConfig] = useState<Config>(defaultConfig);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [gettingLocation, setGettingLocation] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+
+  const supabase = createClient();
 
   const fetchConfig = async () => {
     setLoading(true);
@@ -71,6 +78,7 @@ export default function SettingsPage() {
       if (json.data) {
         setConfig({
           restaurant_name:        json.data.restaurant_name || '',
+          logo_url:               json.data.logo_url || '',
           office_lat:             json.data.office_lat?.toString() || '',
           office_lng:             json.data.office_lng?.toString() || '',
           radius_meter:           json.data.radius_meter?.toString() || '100',
@@ -112,6 +120,35 @@ export default function SettingsPage() {
     );
   };
 
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      if (!e.target.files || e.target.files.length === 0) return;
+      const file = e.target.files[0];
+      
+      const fileExt = file.name.split('.').pop();
+      const fileName = `logo-${Math.random()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      setUploadingLogo(true);
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      set('logo_url', data.publicUrl);
+      toast.success("Logo diunggah. Jangan lupa klik Simpan Perubahan.");
+    } catch (error: any) {
+      toast.error("Gagal mengunggah logo: " + error.message);
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!config.restaurant_name.trim()) {
       toast.warning("Nama restoran wajib diisi.");
@@ -124,6 +161,7 @@ export default function SettingsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           restaurant_name:        config.restaurant_name,
+          logo_url:               config.logo_url,
           office_lat:             config.office_lat ? parseFloat(config.office_lat) : null,
           office_lng:             config.office_lng ? parseFloat(config.office_lng) : null,
           radius_meter:           parseInt(config.radius_meter) || 100,
@@ -186,14 +224,35 @@ export default function SettingsPage() {
         description="Nama dan informasi dasar bisnis"
         color="bg-amber-500"
       >
-        <Field label="Nama Restoran" hint="Akan ditampilkan di header dan laporan">
-          <Input
-            value={config.restaurant_name}
-            onChange={e => set('restaurant_name', e.target.value)}
-            placeholder="Contoh: Warung Bu Sari"
-            className="text-base font-medium"
-          />
-        </Field>
+        <div className="flex flex-col md:flex-row gap-6">
+          <div className="shrink-0 flex flex-col items-center">
+             <div className="h-24 w-24 rounded-2xl bg-stone-100 border-2 border-stone-200 overflow-hidden flex items-center justify-center mb-3">
+               {config.logo_url ? (
+                 <img src={config.logo_url} alt="Logo" className="w-full h-full object-contain" />
+               ) : (
+                 <Building2 className="h-8 w-8 text-stone-300" />
+               )}
+             </div>
+             <div>
+               <Input type="file" id="logoUpload" className="hidden" accept="image/*" onChange={handleLogoUpload} disabled={uploadingLogo} />
+               <label htmlFor="logoUpload" className="inline-block w-full">
+                 <div className={`w-full text-center px-3 py-1 border border-stone-200 rounded-md text-xs font-bold cursor-pointer transition-colors ${uploadingLogo ? 'bg-stone-100 text-stone-400' : 'bg-white text-stone-700 hover:bg-stone-50'}`}>
+                   {uploadingLogo ? "Mengunggah..." : "Ubah Logo"}
+                 </div>
+               </label>
+             </div>
+          </div>
+          <div className="flex-1">
+            <Field label="Nama Restoran" hint="Akan ditampilkan di header dan laporan">
+              <Input
+                value={config.restaurant_name}
+                onChange={e => set('restaurant_name', e.target.value)}
+                placeholder="Contoh: Warung Bu Sari"
+                className="text-base font-medium"
+              />
+            </Field>
+          </div>
+        </div>
       </SectionCard>
 
       {/* Section 2: Lokasi Kantor / Geofencing */}

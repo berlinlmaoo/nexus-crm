@@ -1,4 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
+
+export const dynamic = 'force-dynamic';
+import Link from 'next/link';
 import { Package, Search, Filter, ArrowUpRight, ArrowDownRight, AlertCircle, ScanBarcode } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,15 +14,31 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import StockSearch from '@/components/stock/StockSearch';
+import StockFilter from '@/components/stock/StockFilter';
 
-export default async function StockManagementPage() {
+export default async function StockManagementPage(props: { searchParams?: Promise<{ q?: string; filter?: string }> }) {
+  const searchParams = await props.searchParams;
+  const query = searchParams?.q || "";
+  const filterVal = searchParams?.filter || "ALL";
+
   const supabase = createClient();
   
-  // Fetch all products ordered by code
-  const { data: products, error } = await supabase
-    .from('products')
-    .select('*')
-    .order('code', { ascending: true });
+  let supabaseQuery = supabase.from('products').select('*');
+
+  if (query) {
+    supabaseQuery = supabaseQuery.or(`code.ilike.%${query}%,name.ilike.%${query}%`);
+  }
+
+  const { data: rawProducts, error } = await supabaseQuery.order('code', { ascending: true });
+  
+  let products = rawProducts || [];
+  
+  if (filterVal === "CRITICAL") {
+    products = products.filter(p => p.current_stock <= p.min_stock);
+  } else if (filterVal === "SAFE") {
+    products = products.filter(p => p.current_stock > p.min_stock);
+  }
 
   if (error) {
     console.error("Fetch error:", error);
@@ -38,14 +57,13 @@ export default async function StockManagementPage() {
           <p className="text-stone-500 mt-1">Pantau pergerakan bahan baku dan persediaan barang Anda.</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="text-stone-700 bg-white shadow-sm font-semibold">
-            <Filter className="h-4 w-4 mr-2 text-stone-400" />
-            Filter
-          </Button>
-          <Button className="bg-amber-500 hover:bg-amber-600 text-white font-semibold shadow-md shadow-amber-500/20">
-            <ScanBarcode className="h-4 w-4 mr-2" />
-            Barcode / Item Masuk
-          </Button>
+          <StockFilter currentFilter={filterVal} />
+          <Link href="/stock/scan">
+            <Button className="bg-amber-500 hover:bg-amber-600 text-white font-semibold shadow-md shadow-amber-500/20">
+              <ScanBarcode className="h-4 w-4 mr-2" />
+              Terminal Scanner / Transaksi
+            </Button>
+          </Link>
         </div>
       </div>
 
@@ -86,13 +104,7 @@ export default async function StockManagementPage() {
 
       <div className="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
         <div className="p-4 border-b border-stone-100 flex items-center justify-between bg-stone-50/50">
-          <div className="relative w-80">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
-            <Input 
-              placeholder="Cari kode atau nama barang..." 
-              className="pl-9 bg-white border-stone-200 focus-visible:ring-amber-500"
-            />
-          </div>
+          <StockSearch defaultQuery={query} />
         </div>
         
         <div className="overflow-x-auto">

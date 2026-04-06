@@ -9,15 +9,19 @@ import { id } from "date-fns/locale";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuGroup } from "@/components/ui/dropdown-menu";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sidebar } from "./Sidebar";
 import { toast } from "sonner";
 import { useRef, useState, useEffect } from "react";
 
 interface HeaderProps {
   onMenuClick?: () => void;
   user?: any;
+  restaurantName?: string;
+  logoUrl?: string;
 }
 
-export function Header({ onMenuClick, user }: HeaderProps) {
+export function Header({ onMenuClick, user, restaurantName, logoUrl }: HeaderProps) {
   const router = useRouter();
   const supabase = createClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -105,9 +109,14 @@ export function Header({ onMenuClick, user }: HeaderProps) {
         onChange={handleFileChange} 
       />
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" className="md:hidden" onClick={onMenuClick}>
-          <Menu className="h-5 w-5" />
-        </Button>
+        <Sheet>
+          <SheetTrigger render={<Button variant="ghost" size="icon" className="md:hidden" />}>
+            <Menu className="h-5 w-5" />
+          </SheetTrigger>
+          <SheetContent side="left" className="p-0 border-none w-64 max-w-[80vw]">
+            <Sidebar user={user} restaurantName={restaurantName} logoUrl={logoUrl} />
+          </SheetContent>
+        </Sheet>
         
         <div className="hidden md:flex items-center relative group">
           <Search className="absolute left-3 h-4 w-4 text-stone-400 group-focus-within:text-amber-500 transition-colors" />

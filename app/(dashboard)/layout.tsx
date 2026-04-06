@@ -44,7 +44,7 @@ export default async function DashboardLayout({
       </div>
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <Header user={profile} />
+        <Header user={profile} restaurantName={restaurantName} logoUrl={logoUrl} />
         
         <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 relative">
           <div className="mx-auto max-w-7xl">

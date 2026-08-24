@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireRole, CAN_MOVE_STOCK } from '@/lib/api-auth';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -7,12 +8,19 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
 export async function POST(request: Request) {
+  // CAN_MOVE_STOCK kebetulan = semua role yang ada; yang penting di sini orangnya kelogin dan
+  // akunnya aktif. Absen atas nama orang lain itu persis yang bikin absensi nggak ada gunanya.
+  const { user, error: authError } = await requireRole(CAN_MOVE_STOCK);
+  if (authError) return authError;
+
   try {
     const body = await request.json();
-    const { user_id, check_type, latitude, longitude, photo_base64 } = body;
+    // `user_id` dari body diabaikan — yang absen adalah yang lagi login.
+    const { check_type, latitude, longitude, photo_base64 } = body;
+    const user_id = user.id;
 
-    if (!user_id || !check_type) {
-      return NextResponse.json({ error: 'User ID dan Tipe Absensi wajib diisi' }, { status: 400 });
+    if (!check_type) {
+      return NextResponse.json({ error: 'Tipe Absensi wajib diisi' }, { status: 400 });
     }
 
     // 1. Dapatkan Config Restoran (Untuk batas waktu/lokasi)

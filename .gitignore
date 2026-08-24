@@ -26,7 +26,9 @@ yarn-debug.log*
 yarn-error.log*
 
 # local env files
-.env*.local
+.env
+.env.*
+!.env*.example
 
 # vercel
 .vercel
@@ -34,3 +36,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Kredensial tunnel Cloudflare — creds.json itu kunci tunnel, bukan config
+cloudflared/creds.json
+cloudflared/*.pem
+
+# Cadangan database. Isinya data bisnis (dan pernah data pelamar), dan
+# sekali masuk riwayat git nggak bisa ditarik dari klon orang lain.
+backups/

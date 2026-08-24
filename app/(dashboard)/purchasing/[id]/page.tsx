@@ -1,186 +1,160 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useRouter, useParams } from "next/navigation";
-import { ArrowLeft, CheckCircle2, XCircle, Clock, Truck, Loader2, Package, Printer, ScanBarcode, NotebookPen, Check } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { toast } from "sonner";
+import {
+  ArrowLeft, CheckCircle2, Clock, FileText, Loader2, PackagePlus, Printer, XCircle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/client";
-import BarcodeScanner from "@/components/scanner/BarcodeScanner";
 import { cn } from "@/lib/utils";
+import { segarkanData } from "@/app/actions";
 
-const statusConfig: Record<string, { label: string; color: string; icon: any; bg: string }> = {
-  PENDING_MANAGER: { label: 'Menunggu Persetujuan Manager', color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200', icon: Clock },
-  PENDING_OWNER:   { label: 'Menunggu Persetujuan Owner',   color: 'text-sky-700', bg: 'bg-sky-50 border-sky-200', icon: Clock },
-  APPROVED:        { label: 'Disetujui - Menunggu Kedatangan',  color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200', icon: CheckCircle2 },
-  REJECTED:        { label: 'Ditolak',    color: 'text-rose-700', bg: 'bg-rose-50 border-rose-200', icon: XCircle },
-  FULFILLED:       { label: 'Pesanan Terpenuhi Penuh', color: 'text-stone-700', bg: 'bg-stone-100 border-stone-200', icon: Truck },
+const STATUS: Record<string, { label: string; kelas: string; icon: any }> = {
+  PENDING_MANAGER: { label: "Nunggu persetujuan", kelas: "bg-amber-50 text-amber-800 border-amber-200", icon: Clock },
+  PENDING_OWNER:   { label: "Nunggu persetujuan Owner", kelas: "bg-amber-50 text-amber-800 border-amber-200", icon: Clock },
+  APPROVED:        { label: "Disetujui — nunggu barang dateng", kelas: "bg-emerald-50 text-emerald-800 border-emerald-200", icon: CheckCircle2 },
+  REJECTED:        { label: "Ditolak", kelas: "bg-rose-50 text-rose-800 border-rose-200", icon: XCircle },
+  FULFILLED:       { label: "Barang udah dateng semua", kelas: "bg-stone-100 text-stone-700 border-stone-200", icon: CheckCircle2 },
 };
 
-export default function PurchaseOrderDetailPage() {
-  const router = useRouter();
+const rupiah = (n: number) => `Rp ${(n || 0).toLocaleString("id-ID")}`;
+
+/**
+ * Detail satu Purchase Order.
+ *
+ * Ditulis ulang buat PO yang punya BANYAK baris (borongan dari beberapa purchase request).
+ * Versi sebelumnya nempel ke `po.products` dan `po.quantity` — dua kolom yang sekarang kosong
+ * buat PO baru, jadi halamannya bakal blank.
+ *
+ * Alur terima barangnya juga ganti. Dulu barang datang divalidasi dengan nembak barcode
+ * BARANG-nya; sekarang stiker itu per-unit dan lahir belakangan, jadi waktu barang baru nyampe
+ * belum ada yang bisa ditembak. Yang bener: isi berapa yang dateng → nomor unitnya dibikin →
+ * stikernya dicetak dan ditempel → baru divalidasi di Terminal Stok.
+ */
+export default function PurchaseOrderDetail() {
   const params = useParams();
-  const id = params.id as string;
+  const router = useRouter();
+  const supabase = createClient();
 
   const [po, setPo] = useState<any>(null);
-  const [users, setUsers] = useState<any[]>([]);
+  const [me, setMe] = useState<any>(null);
+  const [unitPerItem, setUnitPerItem] = useState<Record<string, { dibikin: number; divalidasi: number }>>({});
   const [loading, setLoading] = useState(true);
-  const [approving, setApproving] = useState(false);
-  const supabase = createClient();
-  const [selectedApprover, setSelectedApprover] = useState("");
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [sibuk, setSibuk] = useState(false);
+  const [terima, setTerima] = useState<Record<string, number>>({});
 
-  // Receiving state
-  const [receivedQty, setReceivedQty] = useState(0);
-  const [sessionScanned, setSessionScanned] = useState(0);
-  const [receiving, setReceiving] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [barcodeBuffer, setBarcodeBuffer] = useState("");
+  const load = useCallback(async () => {
+    const { data: auth } = await supabase.auth.getUser();
+    const [{ data: profil }, { data: order }] = await Promise.all([
+      auth?.user
+        ? supabase.from("users").select("id, name, role").eq("id", auth.user.id).single()
+        : Promise.resolve({ data: null } as any),
+      supabase
+        .from("purchase_orders")
+        .select(`
+          *,
+          requester:requester_id (name, role),
+          approver:approver_id (name, role),
+          items:purchase_order_items (
+            id, quantity, unit_price, total_price, product_id,
+            products:product_id (id, code, name, unit),
+            request:request_id (request_number, department)
+          )
+        `)
+        .eq("id", params.id)
+        .single(),
+    ]);
 
-  const load = async () => {
-    try {
-      const [poRes, usersRes, meRes] = await Promise.all([
-        supabase.from('purchase_orders').select('*, products:product_id (id, code, name, unit), requester:requester_id (name), approver:approver_id (name)').eq('id', id).single(),
-        supabase.from('users').select('*'),
-        supabase.auth.getUser()
-      ]);
-      
-      if (poRes.data) {
-        setPo(poRes.data);
-        // Calculate already received qty via reference
-        const txRes = await supabase.from('stock_transactions').select('quantity').eq('reference', poRes.data.po_number);
-        const totalRcv = txRes.data?.reduce((acc, curr) => acc + curr.quantity, 0) || 0;
-        setReceivedQty(totalRcv);
-      }
+    setMe(profil);
+    setPo(order);
 
-      if (usersRes.data) setUsers(usersRes.data);
-      
-      if (meRes.data?.user) {
-        const { data: profile } = await supabase.from('users').select('*').eq('id', meRes.data.user.id).single();
-        if (profile) setCurrentUser(profile);
-      }
-    } catch (e) {
-      console.error(e);
-      toast.error("Gagal memuat data PO.");
-    } finally {
-      setLoading(false);
-    }
-  };
+    if (order) {
+      // Berapa unit yang udah dibikin & divalidasi per barang di PO ini. Dihitung dari
+      // stock_units, bukan disimpan di PO — biar nggak ada dua angka yang bisa beda.
+      const { data: units } = await supabase
+        .from("stock_units")
+        .select("product_id, status")
+        .eq("po_id", order.id);
 
-  useEffect(() => {
-    load();
-  }, [id]);
-
-  // Keep focus on hidden input for PO scanner
-  useEffect(() => {
-    if (po?.status === 'APPROVED') {
-      const focusInterval = setInterval(() => {
-        if (document.activeElement?.tagName !== 'TEXTAREA' && document.activeElement?.id !== 'manual-code-input') {
-          inputRef.current?.focus();
-        }
-      }, 1000);
-      return () => clearInterval(focusInterval);
-    }
-  }, [po?.status]);
-
-  const playBeep = () => {
-    try {
-      const audioContent = new Audio("data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU");
-      audioContent.volume = 0.5;
-      audioContent.play().catch(() => {});
-    } catch(e) {}
-  };
-
-  const handleBarcodeSubmit = (code: string) => {
-    if (!code.trim() || !po) return;
-    if (code === po.products.code) {
-      // Valid item scanned!
-      const totalSessionNext = sessionScanned + 1;
-      const totalAll = receivedQty + totalSessionNext;
-      
-      if (totalAll > po.quantity) {
-        toast.error("Melebihi target batas pesanan PO!");
-        playBeep();
-      } else {
-        setSessionScanned(totalSessionNext);
-        playBeep();
-      }
-    } else {
-      toast.error(`Barcode salah! Pesanan ini khusus untuk barang: ${po.products.code}`);
-    }
-  };
-
-  const submitReceiving = async () => {
-    if (sessionScanned <= 0) return;
-    setReceiving(true);
-
-    try {
-      // 1. Submit stock transaction IN pointing to PO number
-      const batchRes = await fetch('/api/stock/update-batch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          items: [{ product_id: po.products.id, quantity: sessionScanned }],
-          type: "IN",
-          notes: `Penerimaan inbound dari ${po.po_number}`,
-          reference: po.po_number
-        })
+      const map: Record<string, { dibikin: number; divalidasi: number }> = {};
+      (units || []).forEach((u: any) => {
+        const m = (map[u.product_id] ||= { dibikin: 0, divalidasi: 0 });
+        m.dibikin += 1;
+        if (u.status !== "PENDING") m.divalidasi += 1;
       });
+      setUnitPerItem(map);
+    }
+    setLoading(false);
+  }, [params.id, supabase]);
 
-      const batchResult = await batchRes.json();
-      if (!batchRes.ok) throw new Error(batchResult.error);
+  useEffect(() => { load(); }, [load]);
 
-      const totalArrivedNow = receivedQty + sessionScanned;
-      
-      // 2. Check complete fulfillment completion
-      if (totalArrivedNow >= po.quantity) {
-        // Mark PO as FULFILLED completely
-        const fulfillRes = await fetch('/api/purchasing', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: po.id, status: 'FULFILLED', approver_id: po.approver_id })
-        });
-        if (!fulfillRes.ok) throw new Error("Gagal mengupdate final status PO");
-        toast.success("PO Terpenuhi Penuh!");
-      } else {
-        toast.success(`Penerimaan Parsial Vavlid. Sisa: ${po.quantity - totalArrivedNow} unit.`);
+  const putuskan = async (setuju: boolean) => {
+    if (sibuk || !po) return;
+    let alasan = "";
+    if (!setuju) {
+      alasan = (prompt("Kenapa PO ini ditolak?") || "").trim();
+      if (!alasan) return;
+    }
+    setSibuk(true);
+    try {
+      const res = await fetch("/api/purchasing/decide", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ po_id: po.id, setuju, alasan }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.error || "Gagal memutuskan PO", { duration: 8000 });
+        return;
       }
-
-      // Reset and reload
-      setSessionScanned(0);
+      toast.success(setuju
+        ? "PO disetujui. Barangnya boleh diterima."
+        : "PO ditolak. Request-nya balik ke papan.");
+      await segarkanData(["/purchasing", `/purchasing/${po.id}`, "/purchase-requests"]);
       await load();
       router.refresh();
-
     } catch (e: any) {
-      toast.error(e.message || "Kesalahan proses penerimaan");
+      toast.error(e?.message || "Nggak bisa nyambung ke server");
     } finally {
-      setReceiving(false);
+      setSibuk(false);
     }
   };
 
-  const handleAction = async (action: "APPROVED" | "REJECTED") => {
-    if (!selectedApprover) {
-      toast.warning("Pilih nama approver terlebih dahulu.");
-      return;
-    }
-    setApproving(true);
-    const res = await fetch('/api/purchasing', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id: po.id,
-        status: action,
-        approver_id: selectedApprover || po.approver_id
-      })
-    });
-    const result = await res.json();
-    setApproving(false);
-    if (!res.ok) {
-      toast.error("Gagal mengubah status: " + result.error);
-    } else {
-      toast.success(action === 'APPROVED' ? "✅ PO berhasil disetujui!" : "❌ PO berhasil ditolak.");
-      await load();
+  const terimaBarang = async (item: any) => {
+    const jumlah = terima[item.id] || 0;
+    if (jumlah < 1) return toast.error("Isi dulu berapa unit yang dateng");
+    if (sibuk) return;
+    setSibuk(true);
+    try {
+      const res = await fetch("/api/stock/units", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          product_id: item.product_id,
+          count: jumlah,
+          reference: po.po_number,
+          po_id: po.id,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.error || "Gagal nyatet kedatangan", { duration: 8000 });
+        return;
+      }
+      const serials: string[] = json.data?.serials ?? [];
+      toast.success(`${serials.length} nomor unit dibikin. Cetak stikernya, tempel, terus validasi.`);
+      await segarkanData(["/purchasing", `/purchasing/${po.id}`, "/stock"]);
+      router.push(`/stock/${item.product_id}/print?serials=${encodeURIComponent(serials.join(","))}`);
+    } catch (e: any) {
+      toast.error(e?.message || "Nggak bisa nyambung ke server");
+    } finally {
+      setSibuk(false);
     }
   };
 
@@ -192,203 +166,186 @@ export default function PurchaseOrderDetailPage() {
     );
   }
 
-  if (!po) return <div className="text-center py-20">Purchase Order tidak ditemukan.</div>;
+  if (!po) {
+    return <div className="p-10 text-center font-bold text-stone-500">Purchase order nggak ketemu.</div>;
+  }
 
-  const cfg = statusConfig[po.status] || statusConfig['PENDING_MANAGER'];
+  const cfg = STATUS[po.status] || STATUS.PENDING_OWNER;
   const StatusIcon = cfg.icon;
-  const canApprove = po.status === 'PENDING_MANAGER' || po.status === 'PENDING_OWNER';
-  const isActiveReceiving = po.status === 'APPROVED';
-
-  // Target sisa pesanan
-  const remainingTarget = po.quantity - receivedQty;
-  const targetCompleted = remainingTarget <= 0;
+  const items = po.items || [];
+  const total = po.total_amount ?? po.total_price ?? 0;
+  const nungguKeputusan = po.status === "PENDING_OWNER" || po.status === "PENDING_MANAGER";
+  const bolehTerima = po.status === "APPROVED";
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 pb-20">
-      
-      {/* Hidden Global Input trap for barcode gun */}
-      {isActiveReceiving && (
-        <input 
-          ref={inputRef}
-          type="text" 
-          className="opacity-0 absolute w-0 h-0" 
-          value={barcodeBuffer}
-          onChange={e => setBarcodeBuffer(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              handleBarcodeSubmit(barcodeBuffer);
-              setBarcodeBuffer("");
-            }
-          }}
-          autoFocus
-        />
-      )}
-
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.back()} className="text-stone-500">
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-stone-900">Detail Purchase Order</h2>
-          <p className="text-sm font-mono font-bold text-stone-400 mt-0.5">{po.po_number}</p>
+    <div className="max-w-4xl mx-auto space-y-6">
+      <div className="flex flex-wrap items-start gap-3 sm:flex-nowrap sm:items-center sm:gap-4">
+        <Link href="/purchasing" className="shrink-0">
+          <Button variant="ghost" size="icon" className="text-stone-500">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+        </Link>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-stone-900 font-mono">{po.po_number}</h2>
+          <p className="text-sm text-stone-500 mt-1">
+            Diajukan {po.requester?.name ?? "—"} &middot;{" "}
+            {new Date(po.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
+          </p>
         </div>
+        <Badge variant="outline" className={cn("gap-1.5 px-3 py-1.5 text-xs font-bold", cfg.kelas)}>
+          <StatusIcon className="h-3.5 w-3.5" />
+          {cfg.label}
+        </Badge>
       </div>
 
-      <div className={`rounded-xl border-l-[6px] p-5 flex items-center justify-between ${cfg.bg} ${cfg.color.replace('text-', 'border-')}`}>
-        <div className="flex items-center gap-4">
-          <div className="p-3 rounded-full bg-white/80 shadow-sm">
-            <StatusIcon className={`h-6 w-6 ${cfg.color}`} />
-          </div>
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-stone-500">Status Saat Ini</p>
-            <p className={`text-xl font-black ${cfg.color}`}>{cfg.label}</p>
-          </div>
-        </div>
-        {isActiveReceiving && (
-           <div className="text-right">
-             <p className="text-xs font-bold uppercase tracking-wider text-emerald-600 mb-1">Total Tiba / Diterima</p>
-             <p className="text-2xl font-black text-emerald-700">{receivedQty} <span className="text-sm">/ {po.quantity} {po.products?.unit}</span></p>
-           </div>
-        )}
-      </div>
-
-      <div className="grid md:grid-cols-2 gap-6">
-        {/* PO Info */}
-        <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-6 space-y-4">
-          <h3 className="font-bold text-stone-800 flex items-center gap-2">
-            <Package className="h-4 w-4 text-amber-500" />
-            Informasi Produk
-          </h3>
-          <div className="space-y-3">
-            <InfoRow label="Nama Produk" value={po.products?.name || '—'} highlight/>
-            <InfoRow label="Kode Barcode Target" value={po.products?.code || '—'} />
-            <InfoRow label="Satuan" value={po.products?.unit || '—'} />
-            <InfoRow label="Total Sasaran Pesan" value={`${po.quantity} ${po.products?.unit || ''}`} />
-            <InfoRow label="Harga Total Keseluruhan" value={po.total_price ? `Rp ${po.total_price.toLocaleString('id-ID')}` : '—'} />
-          </div>
-        </div>
-
-        {/* PO Meta */}
-        <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-6 space-y-4">
-          <h3 className="font-bold text-stone-800">Informasi Request</h3>
-          <div className="space-y-3">
-            <InfoRow label="Pemohon" value={po.requester?.name || '—'} />
-            <InfoRow label="Penyetuju" value={po.approver?.name || 'Belum ada'} />
-            <InfoRow label="Tanggal Dibuat" value={new Date(po.created_at).toLocaleString('id-ID')} />
-            {po.approved_at && <InfoRow label="Tanggal Disetujui" value={new Date(po.approved_at).toLocaleString('id-ID')} />}
-          </div>
-        </div>
-      </div>
-
-      {/* Approval Actions */}
-      {canApprove && (currentUser?.role === 'OWNER' || currentUser?.role === 'MANAGER') && (
-        <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-6">
-          <h3 className="font-bold text-stone-800 mb-4">Tindakan Approval</h3>
-          <div className="mb-4 space-y-2">
-            <label className="text-sm font-bold text-stone-700">Petugas yang Menyetujui</label>
-            <select
-              value={selectedApprover}
-              onChange={e => setSelectedApprover(e.target.value)}
-              className="w-full h-12 px-4 rounded-xl border border-stone-200 bg-stone-50"
-            >
-              <option value="" disabled>-- Pilih Approver --</option>
-              {users.filter(u => u.role === 'MANAGER' || u.role === 'OWNER').map(u => (
-                <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex gap-3">
-            <Button onClick={() => handleAction('APPROVED')} disabled={approving} className="flex-1 h-12 font-bold bg-emerald-500 hover:bg-emerald-600 text-white shadow-md">
-              {approving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />} Setujui PO
-            </Button>
-            <Button onClick={() => handleAction('REJECTED')} disabled={approving} className="flex-1 h-12 font-bold bg-rose-500 hover:bg-rose-600 text-white shadow-md">
-              {approving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />} Tolak PO
-            </Button>
-          </div>
+      {po.reject_reason && (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4">
+          <p className="font-bold text-rose-900">Ditolak {po.approver?.name ? `oleh ${po.approver.name}` : ""}</p>
+          <p className="mt-1 text-sm text-rose-800">{po.reject_reason}</p>
         </div>
       )}
 
-      {/* RECEIVING SECTOR: Barcode Validation */}
-      {isActiveReceiving && !targetCompleted && (
-        <div className="rounded-3xl border-2 border-emerald-500 overflow-hidden shadow-2xl bg-white mt-8">
-          <div className="bg-emerald-500 p-4 text-white text-center">
-            <h3 className="font-black text-xl flex items-center justify-center gap-2">
-              <ScanBarcode className="w-6 h-6" /> Proses Inbound Barcode Integrasi
-            </h3>
-            <p className="text-emerald-100 text-sm mt-1">Staf gudang: Siapkan stiker barcode sejumlah barang yang datang.</p>
-          </div>
-          
-          <div className="p-6 md:p-8 space-y-8">
-            <div className="grid md:grid-cols-2 gap-8 items-center bg-stone-50 rounded-2xl p-6 border border-stone-100">
-               <div className="space-y-4">
-                 <h4 className="font-bold text-stone-800">1. Cetak Label Khusus PO ini</h4>
-                 <p className="text-sm text-stone-500 leading-relaxed">Sebelum di-*scan*, pastikan setiap kaleng/barang sudah tertempel stiker <b>{po.products.code}</b>.</p>
-                 <Button 
-                   onClick={() => router.push(`/stock/${po.products.id}/print?copies=${remainingTarget}`)}
-                   className="w-full bg-stone-800 hover:bg-black text-white h-12 rounded-xl"
-                 >
-                   <Printer className="w-4 h-4 mr-2" /> Cetak {remainingTarget} Stiker Label
-                 </Button>
-               </div>
-               
-               <div className="h-full flex flex-col justify-center border-l-2 border-stone-200 border-dashed pl-8">
-                 <h4 className="font-bold text-stone-800 mb-4">2. Pemindai Valdiator Barang</h4>
-                 <div className="bg-stone-900 rounded-xl overflow-hidden relative border border-stone-800 shadow-inner">
-                    <BarcodeScanner onScanSuccess={handleBarcodeSubmit} />
-                    <div className="bg-stone-800/80 backdrop-blur-sm p-3">
-                      <Input 
-                        id="manual-code-input"
-                        placeholder="Bypass Barcode... (Demo Saja)"
-                        className="bg-black border-stone-700 text-emerald-400 font-mono text-center h-10"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            handleBarcodeSubmit(e.currentTarget.value);
-                            e.currentTarget.value = "";
-                          }
+      {/* Panel keputusan Owner. Tombolnya cuma muncul buat Owner — dan server juga nolak
+          yang lain, jadi ini soal nggak nampilin tombol yang bakal gagal, bukan soal keamanan. */}
+      {nungguKeputusan && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-5">
+          <p className="font-black text-amber-900">Nunggu keputusan Owner</p>
+          <p className="mt-1 text-sm text-amber-800">
+            Barang belum boleh diterima sebelum PO ini disetujui. Kalau ditolak, semua request di
+            dalamnya balik ke papan biar bisa diajukan ulang.
+          </p>
+          {me?.role === "OWNER" ? (
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button
+                onClick={() => putuskan(true)} disabled={sibuk}
+                className="h-11 px-6 font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                {sibuk ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+                Setujui PO
+              </Button>
+              <Button
+                onClick={() => putuskan(false)} disabled={sibuk}
+                variant="ghost" className="h-11 px-6 font-bold text-rose-600 hover:bg-rose-100"
+              >
+                <XCircle className="h-4 w-4 mr-2" /> Tolak
+              </Button>
+            </div>
+          ) : (
+            <p className="mt-3 text-sm font-bold text-amber-900">
+              Cuma Owner yang bisa memutuskan.
+            </p>
+          )}
+        </div>
+      )}
+
+      <div className="rounded-2xl border border-stone-200 bg-white shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between border-b border-stone-100 bg-stone-50/50 px-5 py-4">
+          <h3 className="font-black text-stone-900">Isi Pesanan</h3>
+          <p className="text-sm font-bold text-stone-700">{rupiah(total)}</p>
+        </div>
+
+        <div className="divide-y divide-stone-100">
+          {items.length === 0 && (
+            <p className="px-5 py-10 text-center text-stone-500">PO ini nggak punya baris barang.</p>
+          )}
+
+          {items.map((item: any) => {
+            const u = unitPerItem[item.product_id] || { dibikin: 0, divalidasi: 0 };
+            const sisa = item.quantity - u.dibikin;
+
+            return (
+              <div key={item.id} className="px-5 py-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-bold text-stone-900">{item.products?.name ?? "(barang terhapus)"}</p>
+                    <p className="text-xs font-mono text-stone-400">{item.products?.code}</p>
+                    {item.request && (
+                      <p className="mt-1 text-[11px] text-stone-500">
+                        dari {item.request.request_number}
+                        {item.request.department ? ` · ${item.request.department}` : ""}
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <p className="font-black text-stone-900">
+                      {item.quantity} <span className="text-xs font-bold text-stone-400">{item.products?.unit}</span>
+                    </p>
+                    {item.total_price != null && (
+                      <p className="text-xs text-stone-500">{rupiah(item.total_price)}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                  <span className="rounded-lg bg-stone-100 px-2 py-1 font-bold text-stone-600">
+                    {u.divalidasi} masuk gudang
+                  </span>
+                  {u.dibikin > u.divalidasi && (
+                    <span className="rounded-lg bg-amber-100 px-2 py-1 font-bold text-amber-800">
+                      {u.dibikin - u.divalidasi} nunggu validasi
+                    </span>
+                  )}
+                  {sisa > 0 && (
+                    <span className="rounded-lg bg-white px-2 py-1 font-bold text-stone-500 border border-stone-200">
+                      sisa {sisa} belum dateng
+                    </span>
+                  )}
+                </div>
+
+                {bolehTerima && sisa > 0 && (
+                  <div className="mt-3 flex flex-wrap items-end gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-emerald-800 mb-1">
+                        Yang dateng
+                      </label>
+                      <Input
+                        inputMode="numeric"
+                        value={terima[item.id] ? String(terima[item.id]) : ""}
+                        onChange={(e) => {
+                          const n = parseInt(e.target.value.replace(/[^\d]/g, ""), 10);
+                          setTerima((prev) => ({ ...prev, [item.id]: Number.isFinite(n) ? n : 0 }));
                         }}
+                        placeholder={String(sisa)}
+                        className="h-10 w-28 bg-white font-bold"
                       />
                     </div>
-                 </div>
-               </div>
-            </div>
+                    <Button
+                      onClick={() => terimaBarang(item)} disabled={sibuk}
+                      className="h-10 font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
+                    >
+                      {sibuk ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PackagePlus className="h-4 w-4 mr-2" />}
+                      Buat Nomor &amp; Cetak Stiker
+                    </Button>
+                    <p className="text-[11px] text-emerald-800">
+                      Maks {sisa}. Stok naik nanti pas stikernya divalidasi di Terminal.
+                    </p>
+                  </div>
+                )}
 
-            <div className="bg-emerald-50 rounded-2xl p-6 border border-emerald-200 text-center relative overflow-hidden">
-               <p className="text-emerald-800 font-bold mb-2">Progress Pemindaian Sesi Ini</p>
-               <div className="flex justify-center items-end gap-3 mb-4">
-                 <span className="text-6xl font-black text-emerald-600 leading-none">{sessionScanned}</span>
-                 <span className="text-xl font-bold text-emerald-400 mb-1">/ {remainingTarget} unit target {po.products.name}</span>
-               </div>
-               
-               <Button 
-                  onClick={submitReceiving}
-                  disabled={sessionScanned === 0 || receiving}
-                  className="h-14 px-10 text-lg font-black bg-emerald-600 hover:bg-emerald-700 text-white shadow-xl shadow-emerald-500/30 rounded-xl"
-               >
-                 {receiving ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Check className="w-5 h-5 mr-2" />}
-                 Simpan & Validasi {sessionScanned} Barang Masuk
-               </Button>
-               <p className="text-xs text-emerald-600 font-bold mt-4">
-                 Anda bisa menyimpan sebagian (Parsial) jika suplier tidak bawa *full* hari ini.
-               </p>
-            </div>
+                {u.dibikin > 0 && (
+                  <Link
+                    href={`/stock/${item.product_id}/print`}
+                    className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-amber-600 hover:underline"
+                  >
+                    <Printer className="h-3 w-3" /> Cetak ulang stiker
+                  </Link>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
-          </div>
+      {po.notes && (
+        <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+          <p className="text-xs font-bold uppercase tracking-wider text-stone-500">Catatan</p>
+          <p className="mt-1 text-stone-700">{po.notes}</p>
         </div>
       )}
 
-    </div>
-  );
-}
-
-function InfoRow({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
-  return (
-    <div className="flex justify-between items-center py-2 border-b border-stone-50">
-      <span className="text-sm text-stone-500 font-medium">{label}</span>
-      <span className={`text-sm font-bold ${highlight ? 'text-amber-600 text-base' : 'text-stone-800'}`}>{value}</span>
+      <Link href="/purchase-requests" className="inline-flex items-center gap-1.5 text-sm font-bold text-stone-500 hover:text-stone-800">
+        <FileText className="h-4 w-4" /> Lihat papan Purchase Request
+      </Link>
     </div>
   );
 }

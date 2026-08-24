@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireRole, CAN_MOVE_STOCK } from '@/lib/api-auth';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -7,6 +8,9 @@ const supabaseAdmin = createClient(
 );
 
 export async function GET() {
+  const { error: authError } = await requireRole(CAN_MOVE_STOCK);
+  if (authError) return authError;
+
   const { data, error } = await supabaseAdmin
     .from('purchase_orders')
     .select(`
@@ -22,12 +26,18 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const { user, error: authError } = await requireRole(CAN_MOVE_STOCK);
+  if (authError) return authError;
+
   try {
     const body = await request.json();
-    const { product_id, quantity, unit_price, notes, requester_id } = body;
+    // Pengaju diambil dari sesi, bukan dari body: PO itu dokumen yang minta persetujuan, jadi
+    // "siapa yang ngajuin" nggak boleh bisa diketik sendiri sama pengirim request.
+    const { product_id, quantity, unit_price, notes } = body;
+    const requester_id = user.id;
 
-    if (!product_id || !quantity || !requester_id) {
-      return NextResponse.json({ error: 'product_id, quantity, dan requester_id wajib diisi' }, { status: 400 });
+    if (!product_id || !quantity) {
+      return NextResponse.json({ error: 'product_id dan quantity wajib diisi' }, { status: 400 });
     }
 
     // Generate PO number: PO-YYYYMMDD-XXX

@@ -29,7 +29,8 @@ export default async function PurchasingPage() {
     .select(`
       *,
       products:product_id (name, unit),
-      requester:requester_id (name)
+      requester:requester_id (name),
+      items:purchase_order_items (id, quantity, products:product_id (name, unit))
     `)
     .order('created_at', { ascending: false });
 
@@ -37,25 +38,37 @@ export default async function PurchasingPage() {
 
   const pending = pos?.filter(p => p.status === 'PENDING_MANAGER' || p.status === 'PENDING_OWNER').length || 0;
   const approved = pos?.filter(p => p.status === 'APPROVED').length || 0;
+  // PO baru nilainya di `total_amount` (jumlah semua barisnya); `total_price` cuma ada di PO
+  // gaya lama yang satu barang.
   const totalSpend = pos?.filter(p => p.status === 'APPROVED' || p.status === 'FULFILLED')
-    .reduce((sum, p) => sum + (p.total_price || 0), 0) || 0;
+    .reduce((sum, p) => sum + (p.total_amount ?? p.total_price ?? 0), 0) || 0;
+
+  // Ringkasan isi PO: satu baris = satu barang. PO borongan dari beberapa request punya banyak
+  // baris, jadi "nama barang" doang nggak cukup lagi buat ngewakilin isinya.
+  const ringkas = (po: any) => {
+    const items = po.items || [];
+    if (items.length === 0) return { judul: po.products?.name || '—', detail: po.quantity ? `${po.quantity} ${po.products?.unit ?? ''}` : '—' };
+    if (items.length === 1) return { judul: items[0].products?.name || '—', detail: `${items[0].quantity} ${items[0].products?.unit ?? ''}` };
+    const total = items.reduce((n: number, i: any) => n + i.quantity, 0);
+    return { judul: `${items.length} barang`, detail: `${total} unit total` };
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-stone-900">Purchase Orders</h2>
-          <p className="text-stone-500 mt-1">Kelola permintaan pembelian stok dengan alur approval multi-level.</p>
+          <p className="text-stone-500 mt-1">PO lahir dari Purchase Request yang diborong, terus nunggu persetujuan Owner.</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" className="text-stone-700 bg-white shadow-sm font-semibold">
             <Filter className="h-4 w-4 mr-2 text-stone-400" />
             Filter
           </Button>
-          <Link href="/purchasing/new">
+          <Link href="/purchase-requests">
             <Button className="bg-amber-500 hover:bg-amber-600 text-white font-semibold shadow-md shadow-amber-500/20">
               <Plus className="h-4 w-4 mr-2" />
-              Buat PO Baru
+              Papan Purchase Request
             </Button>
           </Link>
         </div>
@@ -98,10 +111,14 @@ export default async function PurchasingPage() {
                 return (
                   <TableRow key={po.id} className="hover:bg-stone-50/50 transition-colors">
                     <TableCell className="font-mono font-bold text-stone-500 text-xs">{po.po_number}</TableCell>
-                    <TableCell className="font-bold text-stone-800">{po.products?.name || '—'}</TableCell>
-                    <TableCell className="text-right font-bold">{po.quantity} <span className="text-xs text-stone-400">{po.products?.unit}</span></TableCell>
+                    <TableCell className="font-bold text-stone-800">{ringkas(po).judul}</TableCell>
+                    <TableCell className="text-right font-bold">
+                      <span className="text-sm">{ringkas(po).detail}</span>
+                    </TableCell>
                     <TableCell className="text-right font-bold text-stone-700">
-                      {po.total_price ? `Rp ${po.total_price.toLocaleString('id-ID')}` : '—'}
+                      {(po.total_amount ?? po.total_price)
+                        ? `Rp ${(po.total_amount ?? po.total_price).toLocaleString('id-ID')}`
+                        : '—'}
                     </TableCell>
                     <TableCell className="text-stone-600">{po.requester?.name || '—'}</TableCell>
                     <TableCell className="text-stone-500 text-sm">
@@ -130,9 +147,9 @@ export default async function PurchasingPage() {
             <div className="py-20 text-center flex flex-col items-center gap-3">
               <ShoppingCart className="h-10 w-10 text-stone-300" />
               <p className="text-stone-500 font-medium">Belum ada Purchase Order. Buat PO pertama Anda!</p>
-              <Link href="/purchasing/new">
+              <Link href="/purchase-requests">
                 <Button size="sm" className="mt-2 bg-amber-500 hover:bg-amber-600 text-white font-bold">
-                  <Plus className="h-4 w-4 mr-1" /> Buat PO Baru
+                  <Plus className="h-4 w-4 mr-1" /> Papan Purchase Request
                 </Button>
               </Link>
             </div>

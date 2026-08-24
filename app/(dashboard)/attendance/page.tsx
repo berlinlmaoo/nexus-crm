@@ -8,6 +8,7 @@ import { id } from 'date-fns/locale';
 import AttendanceFilter from '@/components/attendance/AttendanceFilter';
 import DashboardSearch from '@/components/ui/dashboard-search';
 import AttendanceModal from '@/components/attendance/AttendanceModal';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 export const dynamic = 'force-dynamic';
 
@@ -112,154 +113,203 @@ export default async function AttendanceLogPage(props: { searchParams?: Promise<
         </div>
       </div>
 
-      {/* 4 Pillar Metrics */}
+      {/* Ringkasan absensi hari ini.
+          Ditulis ulang 2026-08-20. Yang lama pakai garis warna tebal di sisi kiri kartu
+          (`border-l-4`) — pola yang bikin tiap kartu keliatan kayak potongan template, bukan
+          sesuatu yang dirancang. Diganti: latar bernada warna cuma waktu ada yang perlu
+          ditindak, dan netral waktu semuanya beres.
+
+          Perbaikan yang lebih penting daripada tampilan: DULU EMPAT ANGKA NOL BERTERIAK SAMA
+          KERASNYA. Padahal "0 telat" itu kabar baik dan "6 belum check-in" itu kerjaan. Sekarang
+          angka yang nggak butuh tindakan sengaja diredam abu-abu, dan yang butuh tindakan yang
+          diwarnain — jadi mata langsung jatuh ke tempat yang bener. */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-2xl p-5 shadow-sm border-l-4 border-l-emerald-500 border border-stone-100 flex flex-col justify-between h-32 relative overflow-hidden">
-          <h3 className="text-[10px] font-black text-stone-400 uppercase tracking-widest relative z-10">Hadir</h3>
-          <div className="flex items-end gap-3 relative z-10">
-            <span className="text-4xl font-black tracking-tighter text-stone-900 leading-none">{metrics.hadir}</span>
-            <span className="text-emerald-500 font-bold text-sm mb-1">{totalStaff > 0 ? Math.round((metrics.hadir/totalStaff)*100) : 0}%</span>
-          </div>
-        </div>
+        {(() => {
+          const persen = totalStaff > 0 ? Math.round((metrics.hadir / totalStaff) * 100) : 0;
 
-        <div className="bg-white rounded-2xl p-5 shadow-sm border-l-4 border-l-amber-500 border border-stone-100 flex flex-col justify-between h-32 relative overflow-hidden">
-          <h3 className="text-[10px] font-black text-stone-400 uppercase tracking-widest relative z-10">Telat</h3>
-          <div className="flex items-end gap-3 relative z-10">
-            <span className="text-4xl font-black tracking-tighter text-stone-900 leading-none">{metrics.telat}</span>
-            {metrics.telat === 0 ? (
-               <span className="text-emerald-600 font-bold text-xs mb-1 bg-emerald-50 px-2 py-0.5 rounded-md">Aman</span>
-            ) : (
-               <span className="text-amber-600 font-bold text-xs mb-1 bg-amber-50 px-2 py-0.5 rounded-md">Warning</span>
-            )}
-          </div>
-        </div>
+          const kartu = [
+            {
+              label: "Hadir",
+              nilai: metrics.hadir,
+              dari: totalStaff,
+              nada: metrics.hadir > 0 ? "baik" : "netral",
+              catatan: `${persen}% dari ${totalStaff} staff`,
+            },
+            {
+              label: "Telat",
+              nilai: metrics.telat,
+              nada: metrics.telat > 0 ? "perhatian" : "netral",
+              catatan: metrics.telat > 0 ? "perlu ditindaklanjuti" : "nggak ada yang telat",
+            },
+            {
+              label: "Belum Check-In",
+              nilai: metrics.belum,
+              dari: totalStaff,
+              nada: metrics.belum > 0 ? "perhatian" : "baik",
+              catatan: metrics.belum > 0 ? "belum absen hari ini" : "semua udah absen",
+            },
+            {
+              label: "Luar Radius",
+              nilai: metrics.luar,
+              nada: metrics.luar > 0 ? "bahaya" : "netral",
+              catatan: metrics.luar > 0 ? "absen di luar area kantor" : "semua di dalam area",
+            },
+          ] as const;
 
-        <div className="bg-white rounded-2xl p-5 shadow-sm border-l-4 border-l-sky-400 border border-stone-100 flex flex-col justify-between h-32 relative overflow-hidden">
-          <h3 className="text-[10px] font-black text-stone-400 uppercase tracking-widest relative z-10">Belum Check-In</h3>
-          <div className="flex items-end gap-3 relative z-10">
-            <span className="text-4xl font-black tracking-tighter text-stone-900 leading-none">{metrics.belum}</span>
-          </div>
-        </div>
+          const gaya: Record<string, { kartu: string; angka: string; pembagi: string; catatan: string; titik: string }> = {
+            // Nada netral dipakai buat nol yang justru kabar baik. Angkanya diredam biar nggak
+            // ikut berteriak — TAPI cuma sampai stone-500, bukan lebih pucat. Angka ini isi
+            // utama kartunya; kalau dibikin stone-300 dia lolos jadi hiasan dan orang harus
+            // mendekat ke layar buat baca angkanya sendiri.
+            netral:    { kartu: "border-stone-200 bg-white",           angka: "text-stone-500",   pembagi: "text-stone-500",   catatan: "text-stone-500",   titik: "bg-stone-300" },
+            baik:      { kartu: "border-emerald-200 bg-emerald-50/50", angka: "text-emerald-700", pembagi: "text-emerald-700", catatan: "text-emerald-800", titik: "bg-emerald-500" },
+            perhatian: { kartu: "border-amber-200 bg-amber-50/60",     angka: "text-amber-700",   pembagi: "text-amber-700",   catatan: "text-amber-800",   titik: "bg-amber-500" },
+            bahaya:    { kartu: "border-rose-200 bg-rose-50/60",       angka: "text-rose-700",    pembagi: "text-rose-700",    catatan: "text-rose-800",    titik: "bg-rose-500" },
+          };
 
-        <div className={`bg-white rounded-2xl p-5 shadow-sm border-l-4 border border-stone-100 flex flex-col justify-between h-32 relative overflow-hidden ${metrics.luar === 0 ? "border-l-emerald-500" : "border-l-rose-500"}`}>
-          <h3 className="text-[10px] font-black text-stone-400 uppercase tracking-widest relative z-10">Luar Radius</h3>
-          <div className="flex items-end gap-3 relative z-10">
-            <span className="text-4xl font-black tracking-tighter text-stone-900 leading-none">{metrics.luar}</span>
-            {metrics.luar === 0 ? (
-               <span className="text-emerald-600 font-bold text-xs mb-1 bg-emerald-50 px-2 py-0.5 rounded-md">Aman</span>
-            ) : (
-               <span className="text-rose-600 font-bold text-xs mb-1 bg-rose-50 px-2 py-0.5 rounded-md">Pelanggaran</span>
-            )}
-          </div>
-        </div>
+          return kartu.map((k) => {
+            const g = gaya[k.nada];
+            return (
+              <div key={k.label} className={`rounded-2xl border p-5 shadow-sm ${g.kartu}`}>
+                <div className="flex items-center gap-2">
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${g.titik}`} />
+                  {/* stone-600, bukan stone-400: label yang kepucetan bikin orang harus
+                      mendekat ke layar buat tahu angka ini angka apa. */}
+                  <h3 className="text-[11px] font-black uppercase tracking-wider text-stone-600">
+                    {k.label}
+                  </h3>
+                </div>
+
+                <p className="mt-3 flex items-baseline gap-1.5">
+                  <span className={`text-4xl font-black leading-none tracking-tight ${g.angka}`}>
+                    {k.nilai}
+                  </span>
+                  {"dari" in k && k.dari ? (
+                    // Warnanya ngikutin rona kartunya. Abu-abu di atas latar kuning/merah
+                    // kebaca pudar, dan pembagi yang pudar bikin "6 / 6" keliatan kayak "6".
+                    <span className={`text-lg font-bold opacity-70 ${g.pembagi}`}>/ {k.dari}</span>
+                  ) : null}
+                </p>
+
+                {/* Tiap kartu punya SATU baris keterangan dengan bentuk yang sama. Yang lama
+                    beda-beda — ada yang persen, ada yang lencana, ada yang kosong — jadi
+                    keempatnya keliatan sekelompok tapi kelakuannya nggak. */}
+                <p className={`mt-2 text-xs font-medium ${g.catatan}`}>{k.catatan}</p>
+              </div>
+            );
+          });
+        })()}
       </div>
 
-      {/* Grid List */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-8">
-        {finalUsers.map(u => {
-          const isWaiting = !u.log;
-          const isLate = u.log?.status === 'LATE';
-          const isOutRange = u.log?.status === 'OUT_OF_RANGE';
-          
-          let cardClasses = "rounded-3xl border border-stone-100 p-6 flex flex-col gap-6 shadow-[0px_4px_20px_-10px_rgba(0,0,0,0.05)] transition-all";
-          if (isWaiting) {
-            cardClasses += " bg-stone-50/50 grayscale-[20%] opacity-80 border-dashed border-stone-200";
-          } else {
-            cardClasses += " bg-stone-50/20";
-          }
+      {/* Daftar staff — list view. Satu baris per orang, jadi 6+ staff kebaca sekali lihat
+          tanpa scroll panjang kayak versi kartu. */}
+      <div className="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden mt-8">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader className="bg-stone-50">
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="font-bold text-stone-600">Staff</TableHead>
+                <TableHead className="font-bold text-stone-600">Status</TableHead>
+                <TableHead className="font-bold text-stone-600">Check-In</TableHead>
+                <TableHead className="font-bold text-stone-600">Lokasi</TableHead>
+                <TableHead className="text-right font-bold text-stone-600">Aksi</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {finalUsers.map(u => {
+                const isWaiting = !u.log;
+                const isLate = u.log?.status === 'LATE';
+                const isOutRange = u.log?.status === 'OUT_OF_RANGE';
 
-          let badgeVariant = "bg-stone-200 text-stone-600";
-          let badgeText = "MENUNGGU";
-          
-          if (!isWaiting) {
-            if (isLate) {
-              badgeVariant = "bg-rose-100 text-rose-700 uppercase tracking-wider text-[10px] shadow-none";
-              badgeText = "TELAT CHECKIN"; // TBD calculate duration
-            } else if (isOutRange) {
-              badgeVariant = "bg-amber-100 text-amber-700 uppercase tracking-wider text-[10px] shadow-none";
-              badgeText = "LUAR RADIUS";
-            } else {
-              badgeVariant = "bg-[#6be4b6] text-emerald-900 uppercase tracking-wider text-[10px] shadow-none font-bold border-none";
-              badgeText = "TEPAT WAKTU";
-            }
-          }
+                let badgeVariant = "bg-stone-200 text-stone-600";
+                let badgeText = "MENUNGGU";
 
-          return (
-            <div key={u.id} className={cardClasses}>
-              {/* Header Card */}
-              <div className="flex justify-between items-start">
-                <div className="flex gap-4">
-                  <div className="relative">
-                    <Avatar className="h-14 w-14 border border-stone-200 shadow-sm ring-4 ring-white">
-                      <AvatarImage src={u.photo_url || `https://i.pravatar.cc/150?u=${u.id}`} className="object-cover" />
-                      <AvatarFallback className="bg-stone-200 text-stone-500 font-bold text-lg">{u.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    {/* Status Dot */}
-                    <div className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-white 
-                      ${isWaiting ? 'bg-stone-300' : isLate ? 'bg-amber-500' : 'bg-emerald-600'}`
-                    }></div>
-                  </div>
-                  <div>
-                    <h4 className="text-lg font-black text-stone-900 tracking-tight">{u.name}</h4>
-                    <p className="text-xs font-medium text-stone-500 mt-0.5">{u.role}</p>
-                  </div>
-                </div>
-                <Badge className={badgeVariant}>{badgeText}</Badge>
-              </div>
+                if (!isWaiting) {
+                  if (isLate) {
+                    badgeVariant = "bg-rose-100 text-rose-700 uppercase tracking-wider text-[10px] shadow-none";
+                    badgeText = "TELAT CHECKIN";
+                  } else if (isOutRange) {
+                    badgeVariant = "bg-amber-100 text-amber-700 uppercase tracking-wider text-[10px] shadow-none";
+                    badgeText = "LUAR RADIUS";
+                  } else {
+                    badgeVariant = "bg-[#6be4b6] text-emerald-900 uppercase tracking-wider text-[10px] shadow-none font-bold border-none";
+                    badgeText = "TEPAT WAKTU";
+                  }
+                }
 
-              {/* Data Detail Card */}
-              {!isWaiting ? (
-                <>
-                  <div className="grid grid-cols-2 gap-4 pt-4 border-t border-stone-100/60 border-dashed">
-                    <div>
-                      <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-1.5">Check-In</p>
-                      <p className="text-xl font-bold text-stone-900 tracking-tight">
-                        {new Date(u.log.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-1.5">Lokasi</p>
-                      <div className="flex items-center gap-1.5 text-stone-700 text-sm font-medium">
-                        <MapPin className="h-3.5 w-3.5 text-emerald-600" />
-                        Dalam Radius ({u.log.distance_from_office != null ? Math.round(u.log.distance_from_office) : '?'}m)
+                return (
+                  <TableRow key={u.id} className={`hover:bg-stone-50/50 transition-colors ${isWaiting ? "opacity-70" : ""}`}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="relative shrink-0">
+                          <Avatar className="h-10 w-10 border border-stone-200">
+                            <AvatarImage src={u.photo_url || undefined} className="object-cover" />
+                            <AvatarFallback className="bg-stone-200 text-stone-500 font-bold">{u.name.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                          <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white
+                            ${isWaiting ? 'bg-stone-300' : isLate ? 'bg-amber-500' : 'bg-emerald-600'}`}></div>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-stone-900 leading-tight truncate">{u.name}</p>
+                          <p className="text-xs text-stone-500 mt-0.5">{u.role}</p>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                  <div className="flex justify-between items-end mt-2">
-                    <div className="w-10 h-10 rounded-full border border-stone-200 flex items-center justify-center overflow-hidden opacity-50 grayscale bg-white">
-                       <MapPin className="h-5 w-5 text-rose-500" />
-                    </div>
-                    <AttendanceModal user={u} log={u.log} />
-                  </div>
-                </>
-              ) : (
-                <div className="pt-4 border-t border-stone-100/60 flex flex-col justify-between h-full gap-6">
-                  <p className="text-sm italic text-stone-400">Belum melakukan check-in hari ini</p>
-                  <div className="flex justify-end">
-                    {u.phone ? (
-                      <a href={`https://wa.me/${u.phone.replace(/[^0-9]/g, '')}?text=Halo%20${encodeURIComponent(u.name)},%20jangan%20lupa%20untuk%20melakukan%20Check-In%20presensi%20hari%20ini%20ya!`} target="_blank" rel="noopener noreferrer">
-                        <Button variant="ghost" className="text-stone-700 font-bold text-sm tracking-wide bg-stone-200/50 hover:bg-stone-200">
-                          Ingatkan via WA
-                        </Button>
-                      </a>
-                    ) : (
-                      <Button variant="ghost" disabled className="text-stone-400 font-bold text-sm tracking-wide bg-stone-100">
-                        Ingatkan Staff
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
+                    </TableCell>
 
-        {finalUsers.length === 0 && (
-          <div className="col-span-1 lg:col-span-2 py-20 text-center flex flex-col items-center">
-             <UserCheck className="h-10 w-10 text-stone-300 mb-3" />
-             <p className="text-stone-500 font-medium tracking-wide">Data staff kosong atau filter tidak ditepat.</p>
-          </div>
-        )}
+                    <TableCell><Badge className={badgeVariant}>{badgeText}</Badge></TableCell>
+
+                    <TableCell>
+                      {isWaiting ? (
+                        <span className="text-sm italic text-stone-400">Belum check-in</span>
+                      ) : (
+                        <span className="font-bold text-stone-900 tabular-nums">
+                          {new Date(u.log.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+                    </TableCell>
+
+                    <TableCell>
+                      {isWaiting ? (
+                        <span className="text-stone-300">&mdash;</span>
+                      ) : (
+                        <div className="flex items-center gap-1.5 text-sm font-medium text-stone-700">
+                          <MapPin className={`h-3.5 w-3.5 ${isOutRange ? 'text-amber-600' : 'text-emerald-600'}`} />
+                          {isOutRange ? 'Luar radius' : 'Dalam radius'}
+                          {u.log.distance_from_office != null && (
+                            <span className="text-stone-400">({Math.round(u.log.distance_from_office)}m)</span>
+                          )}
+                        </div>
+                      )}
+                    </TableCell>
+
+                    <TableCell className="text-right">
+                      {!isWaiting ? (
+                        <AttendanceModal user={u} log={u.log} />
+                      ) : u.phone ? (
+                        <a href={`https://wa.me/${u.phone.replace(/[^0-9]/g, '')}?text=Halo%20${encodeURIComponent(u.name)},%20jangan%20lupa%20untuk%20melakukan%20Check-In%20presensi%20hari%20ini%20ya!`} target="_blank" rel="noopener noreferrer">
+                          <Button variant="ghost" className="font-bold text-sm text-stone-700 bg-stone-200/50 hover:bg-stone-200">
+                            Ingatkan via WA
+                          </Button>
+                        </a>
+                      ) : (
+                        <Button variant="ghost" disabled className="font-bold text-sm text-stone-400 bg-stone-100">
+                          Ingatkan Staff
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+
+          {finalUsers.length === 0 && (
+            <div className="py-20 text-center flex flex-col items-center">
+              <UserCheck className="h-10 w-10 text-stone-300 mb-3" />
+              <p className="text-stone-500 font-medium tracking-wide">Data staff kosong atau filter tidak ditepat.</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

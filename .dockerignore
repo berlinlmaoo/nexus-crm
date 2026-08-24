@@ -1,0 +1,21 @@
+node_modules
+.next
+.git
+backups
+scripts
+UI
+*.xlsx
+package-lock 2.json
+audit-olsera-stock.mjs
+inspect-olsera-data.mjs
+replace-nexus-stock-with-olsera-raw-materials.mjs
+restore-nexus-stock-backup.mjs
+npm-debug.log*
+.DS_Store
+Dockerfile
+.dockerignore
+.env.olsera
+.env.olsera.example
+README.md
+supabase/.branches
+supabase/.temp

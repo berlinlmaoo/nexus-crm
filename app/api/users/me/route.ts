@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireRole } from '@/lib/api-auth';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -7,10 +8,16 @@ const supabaseAdmin = createClient(
 );
 
 export async function POST(request: Request) {
-  try {
-    const { id, photo_url } = await request.json();
+  const { user, error: authError } = await requireRole(['OWNER', 'MANAGER', 'STAFF_GUDANG', 'STAFF_DAPUR']);
+  if (authError) return authError;
 
-    if (!id || !photo_url) {
+  try {
+    // `id` dari body diabaikan — yang bisa diganti cuma foto punya sendiri. Sebelumnya siapa pun
+    // bisa nimpa foto profil orang lain cukup dengan nebak id-nya.
+    const { photo_url } = await request.json();
+    const id = user.id;
+
+    if (!photo_url) {
       return NextResponse.json({ error: 'Missing requirements' }, { status: 400 });
     }
 

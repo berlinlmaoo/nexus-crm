@@ -84,7 +84,7 @@ export default function UserManagementPage() {
               <div key={user.id} className="p-4 md:p-6 flex flex-col md:flex-row items-center justify-between gap-4 bg-white/60">
                 <div className="flex items-center gap-4 w-full md:w-auto">
                   <Avatar className="h-10 w-10 border border-rose-100 shadow-sm">
-                    <AvatarImage src={user.photo_url || `https://i.pravatar.cc/150?u=${user.id}`} alt={user.name} className="object-cover" />
+                    <AvatarImage src={user.photo_url || undefined} alt={user.name} className="object-cover" />
                     <AvatarFallback className="bg-rose-100 text-rose-700 font-bold">{user.name.charAt(0)}</AvatarFallback>
                   </Avatar>
                   <div>
@@ -123,7 +123,7 @@ export default function UserManagementPage() {
             <div key={user.id} className="p-4 md:p-5 flex flex-col md:flex-row items-center justify-between gap-4 hover:bg-stone-50/50 transition-colors">
               <div className="flex items-center gap-4 w-full md:w-auto">
                 <Avatar className="h-10 w-10 border border-stone-100 shadow-sm">
-                  <AvatarImage src={user.photo_url || `https://i.pravatar.cc/150?u=${user.id}`} alt={user.name} className="object-cover" />
+                  <AvatarImage src={user.photo_url || undefined} alt={user.name} className="object-cover" />
                   <AvatarFallback className="bg-amber-100 text-amber-700 font-bold">{user.name.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div>

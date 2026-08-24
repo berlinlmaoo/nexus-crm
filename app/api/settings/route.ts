@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireRole } from '@/lib/api-auth';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -7,6 +8,11 @@ const supabaseAdmin = createClient(
 );
 
 export async function GET() {
+  // Config ini isinya titik GPS kantor dan batas jam absen — bukan hal yang perlu kebaca
+  // orang lewat yang nggak login.
+  const { error: authError } = await requireRole(['OWNER', 'MANAGER', 'STAFF_GUDANG', 'STAFF_DAPUR']);
+  if (authError) return authError;
+
   const { data, error } = await supabaseAdmin
     .from('restaurant_config')
     .select('*')
@@ -18,6 +24,11 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  // Config restoran nentuin titik kantor & batas jam absen — itu setelan yang cuma boleh
+  // disentuh yang megang toko.
+  const { error: authError } = await requireRole(['OWNER', 'MANAGER']);
+  if (authError) return authError;
+
   try {
     const body = await request.json();
 

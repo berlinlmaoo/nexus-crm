@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireRole, CAN_MOVE_STOCK } from '@/lib/api-auth';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -7,6 +8,9 @@ const supabaseAdmin = createClient(
 );
 
 export async function POST(request: Request) {
+  const { user, error: authError } = await requireRole(CAN_MOVE_STOCK);
+  if (authError) return authError;
+
   try {
     const body = await request.json();
     const { items, type, notes, reference } = body;
@@ -22,7 +26,8 @@ export async function POST(request: Request) {
       type,
       quantity: item.quantity,
       notes: notes || `Batch Scanner ${type}`,
-      reference: reference || null
+      reference: reference || null,
+      user_id: user.id
     }));
 
     const { data, error } = await supabaseAdmin

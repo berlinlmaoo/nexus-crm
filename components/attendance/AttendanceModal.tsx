@@ -41,7 +41,7 @@ export default function AttendanceModal({ user, log }: AttendanceModalProps) {
               {/* User Bar */}
               <div className="flex items-center gap-4 bg-stone-50 p-4 rounded-2xl border border-stone-100">
                 <Avatar className="h-12 w-12 border shadow-sm">
-                  <AvatarImage src={user.photo_url || `https://i.pravatar.cc/150?u=${user.id}`} className="object-cover" />
+                  <AvatarImage src={user.photo_url || undefined} className="object-cover" />
                   <AvatarFallback className="bg-emerald-100 text-emerald-700 font-bold">{user.name.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div>

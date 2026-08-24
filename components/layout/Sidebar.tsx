@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { 
@@ -8,6 +10,7 @@ import {
   ClipboardList, 
   Users as UsersIcon, 
   ShoppingCart, 
+  FileText,
   TrendingUp, 
   Settings, 
   Pizza,
@@ -23,6 +26,11 @@ interface SidebarProps {
 }
 
 export function Sidebar({ user, restaurantName = "KITCHEN LEDGER", logoUrl }: SidebarProps) {
+  // URL logo yang nggak bisa dimuat harus jatuh ke ikon cadangan, bukan nampilin ikon
+  // gambar-rusak bawaan browser. Ini kejadian beneran: logo lama masih nunjuk ke proyek
+  // Supabase cloud yang udah nggak dipakai, jadi `logoUrl` ada isinya tapi host-nya mati —
+  // cek "kalau kosong" doang nggak cukup, yang perlu dicek "kalau nggak kebuka".
+  const [logoGagal, setLogoGagal] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
@@ -34,6 +42,8 @@ export function Sidebar({ user, restaurantName = "KITCHEN LEDGER", logoUrl }: Si
     { name: "Stock Management", href: "/stock", icon: Package, roles: ["OWNER", "MANAGER", "STAFF_GUDANG", "STAFF_DAPUR"] },
     { name: "Stock Opname", href: "/opname", icon: ClipboardList, roles: ["OWNER", "MANAGER", "STAFF_GUDANG"] },
     { name: "Absensi Staff", href: "/attendance", icon: UsersIcon, roles: ["OWNER", "MANAGER", "STAFF_GUDANG", "STAFF_DAPUR"] },
+    // Purchase Request kebuka buat semua staff: tiap head ngajuin kebutuhan divisinya sendiri.
+    { name: "Purchase Request", href: "/purchase-requests", icon: FileText, roles: ["OWNER", "MANAGER", "STAFF_GUDANG", "STAFF_DAPUR"] },
     { name: "Purchase Orders", href: "/purchasing", icon: ShoppingCart, roles: ["OWNER", "MANAGER", "STAFF_GUDANG"] },
     { name: "Finance Report", href: "/report", icon: TrendingUp, roles: ["OWNER"] },
     { name: "User Management", href: "/users", icon: UsersIcon, roles: ["OWNER"] },
@@ -52,8 +62,13 @@ export function Sidebar({ user, restaurantName = "KITCHEN LEDGER", logoUrl }: Si
   return (
     <div className="flex h-full w-64 flex-col border-r bg-stone-50/50 backdrop-blur-xl">
       <div className="flex h-16 shrink-0 items-center px-6 gap-3 border-b border-stone-100">
-        {logoUrl ? (
-          <img src={logoUrl} alt="Logo" className="h-9 w-9 object-contain rounded-lg shadow-sm" />
+        {logoUrl && !logoGagal ? (
+          <img
+            src={logoUrl}
+            alt={restaurantName}
+            onError={() => setLogoGagal(true)}
+            className="h-9 w-9 object-contain rounded-lg shadow-sm"
+          />
         ) : (
           <div className="bg-gradient-to-br from-amber-500 to-amber-600 text-white p-1.5 rounded-lg shadow-sm">
             <Pizza className="h-5 w-5" />

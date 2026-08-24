@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireRole, CAN_MOVE_STOCK } from '@/lib/api-auth';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -8,6 +9,9 @@ const supabaseAdmin = createClient(
 
 // GET: All products with current stock for opname form
 export async function GET() {
+  const { error: authError } = await requireRole(CAN_MOVE_STOCK);
+  if (authError) return authError;
+
   const { data, error } = await supabaseAdmin
     .from('products')
     .select('id, code, name, category, unit, current_stock, min_stock, price')
@@ -19,85 +23,82 @@ export async function GET() {
   return NextResponse.json({ data });
 }
 
-// POST: Submit opname — save ALL counted items + adjust stock for discrepancies
+/**
+ * POST: kirim hasil hitung fisik.
+ *
+ * Seluruh sesi masuk lewat SATU pemanggilan `submit_opname()` di Postgres, bukan tiga insert
+ * berturut-turut dari sini. Versi lama nulis sesi → item → penyesuaian stok satu per satu tanpa
+ * transaksi, jadi kalau langkah terakhir gagal yang ketinggal adalah sesi opname yang ngaku udah
+ * nyesuaikan sekian barang padahal stoknya nggak pernah berubah. Body fungsi plpgsql itu atomik.
+ *
+ * Petugasnya diambil dari SESI, bukan dari dropdown di form. Opname itu satu-satunya jalur yang
+ * bisa nyetel stok ke angka berapa pun, jadi "siapa yang ngitung" nggak boleh bisa dipilih
+ * sendiri sama pengirim request.
+ */
 export async function POST(request: Request) {
+  const { user, error: authError } = await requireRole(CAN_MOVE_STOCK);
+  if (authError) return authError;
+
   try {
     const body = await request.json();
-    const { items, user_id, notes } = body;
-    // items: [{ product_id, system_stock, physical_count }]
+    const { items, notes } = body;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ error: 'items wajib diisi' }, { status: 400 });
     }
 
-    const discrepancies = items.filter(i => Number(i.physical_count) !== Number(i.system_stock));
-    const reference = `OPNAME-${new Date().toISOString().slice(0, 10)}-${Math.floor(Math.random() * 900) + 100}`;
+    // Dibersihin di sini biar yang sampai ke SQL bentuknya pasti. Angka yang nggak kebaca
+    // ditolak, bukan diam-diam jadi 0 — "0" itu hasil hitungan yang sah (barang habis), jadi
+    // nggak boleh dipakai sebagai nilai darurat.
+    const bersih: { product_id: string; system_stock: number; physical_count: number }[] = [];
+    for (const [i, item] of items.entries()) {
+      const productId = String(item?.product_id ?? '').trim();
+      const systemStock = Number(item?.system_stock);
+      const physicalCount = Number(item?.physical_count);
 
-    // 1. Create opname session
-    const { data: session, error: sessionError } = await supabaseAdmin
-      .from('opname_sessions')
-      .insert({
-        reference,
-        petugas_id: user_id || null,
-        notes: notes || null,
-        total_items: items.length,
-        total_discrepancies: discrepancies.length,
-      })
-      .select()
-      .single();
-
-    if (sessionError) {
-      console.error('Session insert error:', sessionError);
-      return NextResponse.json({ error: sessionError.message }, { status: 500 });
-    }
-
-    // 2. Insert ALL opname_items (including those that match)
-    const opnameItems = items.map(item => ({
-      session_id: session.id,
-      product_id: item.product_id,
-      system_stock: Number(item.system_stock),
-      physical_count: Number(item.physical_count),
-      selisih: Number(item.physical_count) - Number(item.system_stock),
-    }));
-
-    const { error: itemsError } = await supabaseAdmin
-      .from('opname_items')
-      .insert(opnameItems);
-
-    if (itemsError) {
-      console.error('Items insert error:', itemsError);
-      return NextResponse.json({ error: itemsError.message }, { status: 500 });
-    }
-
-    // 3. Create stock_transactions only for discrepancies (to actually adjust stock)
-    if (discrepancies.length > 0) {
-      const transactions = discrepancies.map(item => ({
-        product_id: item.product_id,
-        type: 'OPNAME',
-        quantity: Number(item.physical_count),
-        user_id: user_id || null,
-        notes: `Stock Opname ${reference} — Selisih: ${Number(item.physical_count) - Number(item.system_stock)}`,
-        reference,
-      }));
-
-      const { error: txError } = await supabaseAdmin
-        .from('stock_transactions')
-        .insert(transactions);
-
-      if (txError) {
-        console.error('Transaction insert error:', txError);
-        return NextResponse.json({ error: txError.message }, { status: 500 });
+      if (!productId) {
+        return NextResponse.json({ error: `Baris ke-${i + 1} nggak punya product_id` }, { status: 400 });
       }
+      if (!Number.isFinite(systemStock) || !Number.isFinite(physicalCount)) {
+        return NextResponse.json({ error: `Baris ke-${i + 1} angkanya nggak kebaca` }, { status: 400 });
+      }
+      if (physicalCount < 0) {
+        return NextResponse.json({ error: `Hitungan fisik baris ke-${i + 1} nggak boleh minus` }, { status: 400 });
+      }
+
+      bersih.push({
+        product_id: productId,
+        system_stock: Math.trunc(systemStock),
+        physical_count: Math.trunc(physicalCount),
+      });
     }
+
+    const { data, error } = await supabaseAdmin.rpc('submit_opname', {
+      p_petugas: user.id,
+      p_notes: typeof notes === 'string' ? notes : null,
+      p_items: bersih,
+    });
+
+    if (error) {
+      console.error('Opname error:', error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    const adjusted = Number(data?.adjusted ?? 0);
+    const total = Number(data?.total ?? bersih.length);
 
     return NextResponse.json({
-      message: discrepancies.length > 0
-        ? `Opname selesai. ${discrepancies.length} item disesuaikan dari ${items.length} yang diperiksa.`
-        : `Opname selesai. Semua ${items.length} item stok sudah sesuai!`,
-      adjusted: discrepancies.length,
-      total: items.length,
-      session_id: session.id,
-      reference,
+      message: adjusted > 0
+        ? `Opname selesai. ${adjusted} item disesuaikan dari ${total} yang diperiksa.`
+        : `Opname selesai. Semua ${total} item stok sudah sesuai!`,
+      adjusted,
+      total,
+      session_id: data?.session_id,
+      reference: data?.reference,
+      // Unit yang baru lahir karena barangnya ketemu lebih banyak dari yang terdaftar.
+      // Stikernya WAJIB dicetak — tanpa itu barangnya nggak bisa dikeluarin lewat scanner.
+      serials_baru: data?.serials_baru ?? [],
+      product_ids: bersih.map((i) => i.product_id),
     });
 
   } catch (err: any) {

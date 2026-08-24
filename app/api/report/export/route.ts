@@ -1,25 +1,24 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import ExcelJS from 'exceljs';
+import { buildFinanceReport, parseFinanceParams, asNumber } from '@/lib/finance-report';
+import { requireRole } from '@/lib/api-auth';
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const currency = (n: number) => `Rp ${Math.round(n || 0).toLocaleString('id-ID')}`;
+const percent = (n: number) => `${((n || 0) * 100).toFixed(1)}%`;
 
-const currency = (n: number) => `Rp ${(n || 0).toLocaleString('id-ID')}`;
+const RANGE_LABEL: Record<string, string> = { '30d': '30 Hari', '90d': '90 Hari', '180d': '180 Hari', '365d': '1 Tahun' };
+const GRAN_LABEL: Record<string, string> = { day: 'Harian', week: 'Mingguan', month: 'Bulanan' };
 
 // Color palette
 const AMBER   = 'FFF59E0B';
 const EMERALD = 'FF10B981';
 const ROSE    = 'FFFF3B5C';
 const SKY     = 'FF3B82F6';
+const VIOLET  = 'FF8B5CF6';
 const STONE   = 'FF6B7280';
 const WHITE   = 'FFFFFFFF';
-const LIGHT_AMBER  = 'FFFEF3C7';
-const LIGHT_EMERALD= 'FFD1FAE5';
-const LIGHT_ROSE   = 'FFFFE4E6';
-const LIGHT_STONE  = 'FFF9FAFB';
+const LIGHT_EMERALD = 'FFD1FAE5';
+const LIGHT_ROSE    = 'FFFFE4E6';
 
 function styleHeaderRow(row: ExcelJS.Row, bgColor: string) {
   row.eachCell((cell) => {
@@ -50,29 +49,21 @@ function styleDataRow(row: ExcelJS.Row, zebra: boolean) {
   row.height = 20;
 }
 
-function styleSectionTitle(row: ExcelJS.Row, bgColor: string) {
-  row.eachCell({ includeEmpty: true }, (cell) => {
-    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
-    cell.font = { bold: true, size: 12, color: { argb: '44FF6600' } };
-    cell.alignment = { vertical: 'middle' };
-  });
-  row.height = 24;
-}
+export async function GET(request: Request) {
+  // Sama kayak /api/report/finance — ini versi Excel-nya, isinya persis sama.
+  const { error: authError } = await requireRole(['OWNER', 'MANAGER']);
+  if (authError) return authError;
 
-export async function GET() {
-  const [productsRes, transactionsRes, posRes] = await Promise.all([
-    supabaseAdmin.from('products').select('id, name, category, price, current_stock, min_stock').order('name'),
-    supabaseAdmin.from('stock_transactions').select('id, type, quantity, created_at, products:product_id(name, price, category)').order('created_at', { ascending: false }).limit(200),
-    supabaseAdmin.from('purchase_orders').select('*, products:product_id(name, category, unit)').order('created_at', { ascending: false }),
-  ]);
+  const { searchParams } = new URL(request.url);
+  const { range, granularity } = parseFinanceParams(searchParams);
 
-  const products = productsRes.data || [];
-  const transactions = transactionsRes.data || [];
-  const pos = posRes.data || [];
+  const result = await buildFinanceReport(range, granularity);
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: 500 });
+  }
 
-  const totalAssetValue = products.reduce((s, p) => s + p.price * p.current_stock, 0);
-  const criticalItems   = products.filter(p => p.current_stock <= p.min_stock).length;
-  const totalPOSpend    = pos.filter(p => p.status === 'APPROVED' || p.status === 'FULFILLED').reduce((s, p) => s + (p.total_price || 0), 0);
+  const { meta, kpis, trend, byStore, stockByCategory } = result.report;
+  const { orders, products } = result.raw;
 
   const wb = new ExcelJS.Workbook();
   wb.creator = 'NEXUS CRM';
@@ -82,35 +73,42 @@ export async function GET() {
   // SHEET 1: RINGKASAN
   // ──────────────────────────────────────────
   const ws1 = wb.addWorksheet('📊 Ringkasan', { views: [{ showGridLines: false }] });
-  ws1.columns = [
-    { key: 'a', width: 38 },
-    { key: 'b', width: 28 },
-    { key: 'c', width: 22 },
-  ];
+  ws1.columns = [{ key: 'a', width: 38 }, { key: 'b', width: 26 }, { key: 'c', width: 22 }];
 
-  // Title
-  const titleRow = ws1.addRow(['NEXUS CRM — LAPORAN KEUANGAN', '', '']);
-  ws1.mergeCells(`A1:C1`);
+  const titleRow = ws1.addRow(['NEXUS CRM — DASHBOARD FINANCE', '', '']);
+  ws1.mergeCells('A1:C1');
   titleRow.getCell(1).font = { bold: true, size: 16, color: { argb: WHITE } };
   titleRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: AMBER } };
   titleRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
   titleRow.height = 40;
 
-  ws1.addRow(['Tanggal Cetak', new Date().toLocaleDateString('id-ID', { dateStyle: 'full' })]).getCell(1).font = { italic: true, color: { argb: STONE } };
+  ws1.addRow(['Periode', `${RANGE_LABEL[range] || range} • ${GRAN_LABEL[granularity] || granularity}`]).getCell(1).font = { italic: true, color: { argb: STONE } };
+  ws1.addRow(['Sejak', new Date(meta.startDate).toLocaleDateString('id-ID', { dateStyle: 'full' })]).getCell(1).font = { italic: true, color: { argb: STONE } };
+  ws1.addRow(['Tanggal Cetak', new Date(meta.generatedAt).toLocaleString('id-ID')]).getCell(1).font = { italic: true, color: { argb: STONE } };
   ws1.addRow([]);
 
-  // KPI Section
-  const kpiTitle = ws1.addRow(['INDIKATOR UTAMA', 'NILAI']);
-  styleHeaderRow(kpiTitle, AMBER);
+  const kpiHeader = ws1.addRow(['INDIKATOR UTAMA', 'NILAI']);
+  styleHeaderRow(kpiHeader, AMBER);
 
-  const kpis = [
-    ['Total Nilai Aset Stok', currency(totalAssetValue)],
-    ['Total Belanja PO (Disetujui)', currency(totalPOSpend)],
-    ['Item Stok Kritis', `${criticalItems} item`],
-    ['Total Produk Terdaftar', `${products.length} produk`],
-    ['Total Transaksi Stok', `${transactions.length} transaksi`],
+  const kpiRows: [string, string][] = [
+    ['Gross Sales (Olsera)', currency(kpis.grossSales)],
+    ['Net Collected', currency(kpis.netSales)],
+    ['Total Diskon', currency(kpis.discounts)],
+    ['Pajak & Service Charge', currency(kpis.taxAndService)],
+    ['Jumlah Order', `${kpis.orderCount.toLocaleString('id-ID')} order`],
+    ['Rata-rata per Order (AOV)', currency(kpis.averageOrderValue)],
+    ['COGS Estimasi (Nexus)', currency(kpis.cogsEstimate)],
+    ['  — Stock OUT Value', currency(kpis.stockOutValue)],
+    ['  — Waste Value', currency(kpis.wasteValue)],
+    ['Gross Profit Estimasi', currency(kpis.grossProfitEstimate)],
+    ['Gross Margin', percent(kpis.grossMargin)],
+    ['Nilai Stok Saat Ini', currency(kpis.stockAssetValue)],
+    ['Item Stok Kritis', `${kpis.criticalItems.toLocaleString('id-ID')} item`],
+    ['Total Produk', `${kpis.productCount.toLocaleString('id-ID')} produk`],
+    ['Transaksi Stok (periode)', `${kpis.stockTransactionCount.toLocaleString('id-ID')} transaksi`],
+    ['Belanja PO Disetujui', currency(kpis.approvedPurchaseValue)],
   ];
-  kpis.forEach((kpi, i) => {
+  kpiRows.forEach((kpi, i) => {
     const row = ws1.addRow(kpi);
     styleDataRow(row, i % 2 === 0);
     row.getCell(2).font = { bold: true };
@@ -118,151 +116,126 @@ export async function GET() {
 
   ws1.addRow([]);
 
-  // Category Section
-  const catHeader = ws1.addRow(['KATEGORI', 'JUMLAH ITEM', 'NILAI ASET']);
-  styleHeaderRow(catHeader, STONE);
-
-  const categoryMap: Record<string, { count: number; value: number }> = {};
-  products.forEach(p => {
-    const c = p.category || 'Lainnya';
-    if (!categoryMap[c]) categoryMap[c] = { count: 0, value: 0 };
-    categoryMap[c].count += 1;
-    categoryMap[c].value += p.price * p.current_stock;
+  // Per-outlet
+  const outletHeader = ws1.addRow(['OUTLET / APP', 'NET SALES', 'ORDER']);
+  styleHeaderRow(outletHeader, EMERALD);
+  byStore.forEach((s: any, i: number) => {
+    const row = ws1.addRow([s.name, currency(s.netSales), s.orders]);
+    styleDataRow(row, i % 2 === 0);
   });
-  Object.entries(categoryMap).sort(([,a],[,b]) => b.value - a.value).forEach(([cat, data], i) => {
-    const row = ws1.addRow([cat, data.count, currency(data.value)]);
+
+  ws1.addRow([]);
+
+  // Per-category stock value
+  const catHeader = ws1.addRow(['KATEGORI', 'JUMLAH ITEM', 'NILAI STOK']);
+  styleHeaderRow(catHeader, STONE);
+  stockByCategory.forEach((c: any, i: number) => {
+    const row = ws1.addRow([c.name, c.items, currency(c.stockValue)]);
     styleDataRow(row, i % 2 === 0);
   });
 
   // ──────────────────────────────────────────
-  // SHEET 2: DATA STOK
+  // SHEET 2: PENJUALAN PER PERIODE
   // ──────────────────────────────────────────
-  const ws2 = wb.addWorksheet('📦 Data Stok', { views: [{ state: 'frozen', ySplit: 1, showGridLines: false }] });
+  const ws2 = wb.addWorksheet('📈 Penjualan', { views: [{ state: 'frozen', ySplit: 1, showGridLines: false }] });
   ws2.columns = [
+    { header: 'Periode', key: 'label', width: 16 },
+    { header: 'Gross Sales', key: 'gross', width: 20 },
+    { header: 'Net Collected', key: 'net', width: 20 },
+    { header: 'Diskon', key: 'disc', width: 18 },
+    { header: 'Order', key: 'orders', width: 10 },
+    { header: 'COGS Est.', key: 'cogs', width: 20 },
+    { header: 'Gross Profit', key: 'profit', width: 20 },
+    { header: 'Margin', key: 'margin', width: 12 },
+  ];
+  styleHeaderRow(ws2.getRow(1), SKY);
+  trend.forEach((t: any, i: number) => {
+    const row = ws2.addRow({
+      label: t.label,
+      gross: currency(t.grossSales),
+      net: currency(t.netSales),
+      disc: currency(t.discounts),
+      orders: t.orders,
+      cogs: currency(t.cogsEstimate),
+      profit: currency(t.grossProfitEstimate),
+      margin: percent(t.margin),
+    });
+    styleDataRow(row, i % 2 === 0);
+    const profitCell = row.getCell(7);
+    profitCell.font = { bold: true, color: { argb: t.grossProfitEstimate >= 0 ? 'FF065F46' : 'FFBE123C' } };
+  });
+
+  // ──────────────────────────────────────────
+  // SHEET 3: SALES ORDERS (raw)
+  // ──────────────────────────────────────────
+  const MAX_ORDERS = 5000;
+  const ws3 = wb.addWorksheet('🧾 Sales Orders', { views: [{ state: 'frozen', ySplit: 1, showGridLines: false }] });
+  ws3.columns = [
+    { header: 'Tanggal', key: 'date', width: 20 },
+    { header: 'Outlet/App', key: 'app', width: 18 },
+    { header: 'No. Order', key: 'no', width: 20 },
+    { header: 'Gross', key: 'gross', width: 16 },
+    { header: 'Diskon', key: 'disc', width: 14 },
+    { header: 'Pajak', key: 'tax', width: 14 },
+    { header: 'Service', key: 'svc', width: 14 },
+    { header: 'Net', key: 'net', width: 16 },
+    { header: 'Status', key: 'status', width: 16 },
+  ];
+  styleHeaderRow(ws3.getRow(1), VIOLET);
+  orders.slice(0, MAX_ORDERS).forEach((o: any, i: number) => {
+    const row = ws3.addRow({
+      date: o.order_date ? new Date(o.order_date).toLocaleString('id-ID') : '—',
+      app: o.app_name || o.store_name || '—',
+      no: o.order_no || '—',
+      gross: currency(asNumber(o.gross_amount)),
+      disc: currency(asNumber(o.discount_amount)),
+      tax: currency(asNumber(o.tax_amount)),
+      svc: currency(asNumber(o.service_charge_amount)),
+      net: currency(asNumber(o.net_amount)),
+      status: o.status || '—',
+    });
+    styleDataRow(row, i % 2 === 0);
+  });
+  if (orders.length > MAX_ORDERS) {
+    const note = ws3.addRow({ date: `… ${orders.length - MAX_ORDERS} order lagi tidak ditampilkan (batas ${MAX_ORDERS}).` });
+    note.getCell(1).font = { italic: true, color: { argb: STONE } };
+  }
+
+  // ──────────────────────────────────────────
+  // SHEET 4: DATA STOK (semua produk)
+  // ──────────────────────────────────────────
+  const ws4 = wb.addWorksheet('📦 Data Stok', { views: [{ state: 'frozen', ySplit: 1, showGridLines: false }] });
+  ws4.columns = [
     { header: 'No', key: 'no', width: 5 },
     { header: 'Nama Produk', key: 'name', width: 42 },
     { header: 'Kategori', key: 'cat', width: 20 },
-    { header: 'Stok Saat Ini', key: 'stock', width: 15 },
+    { header: 'Stok', key: 'stock', width: 12 },
     { header: 'Min. Stok', key: 'min', width: 12 },
-    { header: 'Harga Satuan', key: 'price', width: 22 },
-    { header: 'Nilai Aset', key: 'value', width: 24 },
+    { header: 'Harga', key: 'price', width: 18 },
+    { header: 'Nilai Stok', key: 'value', width: 20 },
     { header: 'Status', key: 'status', width: 12 },
   ];
-  styleHeaderRow(ws2.getRow(1), EMERALD);
-
-  products.sort((a, b) => (b.price * b.current_stock) - (a.price * a.current_stock)).forEach((p, i) => {
-    const isKritis = p.current_stock <= p.min_stock;
-    const row = ws2.addRow({
-      no: i + 1, name: p.name, cat: p.category,
-      stock: p.current_stock, min: p.min_stock,
-      price: currency(p.price), value: currency(p.price * p.current_stock),
-      status: isKritis ? 'KRITIS' : 'AMAN',
-    });
-    styleDataRow(row, i % 2 === 0);
-    // Color status cell
-    const statusCell = row.getCell(8);
-    if (isKritis) {
-      statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: LIGHT_ROSE } };
-      statusCell.font = { bold: true, color: { argb: 'FFBE123C' } };
-    } else {
-      statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: LIGHT_EMERALD } };
-      statusCell.font = { bold: true, color: { argb: 'FF065F46' } };
-    }
-    statusCell.alignment = { horizontal: 'center', vertical: 'middle' };
-  });
-
-  // ──────────────────────────────────────────
-  // SHEET 3: PURCHASE ORDERS
-  // ──────────────────────────────────────────
-  const ws3 = wb.addWorksheet('🛒 Purchase Orders', { views: [{ state: 'frozen', ySplit: 1, showGridLines: false }] });
-  ws3.columns = [
-    { header: 'No. PO', key: 'po', width: 24 },
-    { header: 'Produk', key: 'product', width: 38 },
-    { header: 'Kategori', key: 'cat', width: 18 },
-    { header: 'Qty', key: 'qty', width: 8 },
-    { header: 'Harga Satuan', key: 'unit', width: 22 },
-    { header: 'Total Harga', key: 'total', width: 22 },
-    { header: 'Status', key: 'status', width: 22 },
-    { header: 'Tanggal', key: 'date', width: 15 },
-  ];
-  styleHeaderRow(ws3.getRow(1), SKY);
-
-  const statusColors: Record<string, { bg: string; fg: string }> = {
-    APPROVED:        { bg: LIGHT_EMERALD, fg: '0059FFBE' },
-    FULFILLED:       { bg: 'FFE0E7FF', fg: '003730B3' },
-    REJECTED:        { bg: LIGHT_ROSE, fg: '00BE123C' },
-    PENDING_MANAGER: { bg: LIGHT_AMBER, fg: '00B45309' },
-    PENDING_OWNER:   { bg: 'FFE0F2FE', fg: '000284c7' },
-  };
-
-  pos.forEach((p: any, i) => {
-    const row = ws3.addRow({
-      po: p.po_number, product: p.products?.name || '—', cat: p.products?.category || '—',
-      qty: p.quantity,
-      unit: p.unit_price ? currency(p.unit_price) : '—',
-      total: p.total_price ? currency(p.total_price) : '—',
-      status: p.status,
-      date: p.created_at ? new Date(p.created_at).toLocaleDateString('id-ID') : '—',
-    });
-    styleDataRow(row, i % 2 === 0);
-    const sc = statusColors[p.status];
-    if (sc) {
-      const statusCell = row.getCell(7);
-      statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: sc.bg } };
-      statusCell.font = { bold: true };
+  styleHeaderRow(ws4.getRow(1), EMERALD);
+  [...products]
+    .sort((a: any, b: any) => (asNumber(b.price) * asNumber(b.current_stock)) - (asNumber(a.price) * asNumber(a.current_stock)))
+    .forEach((p: any, i: number) => {
+      const isKritis = asNumber(p.current_stock) <= asNumber(p.min_stock);
+      const row = ws4.addRow({
+        no: i + 1, name: p.name, cat: p.category,
+        stock: asNumber(p.current_stock), min: asNumber(p.min_stock),
+        price: currency(asNumber(p.price)), value: currency(asNumber(p.price) * asNumber(p.current_stock)),
+        status: isKritis ? 'KRITIS' : 'AMAN',
+      });
+      styleDataRow(row, i % 2 === 0);
+      const statusCell = row.getCell(8);
+      statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isKritis ? LIGHT_ROSE : LIGHT_EMERALD } };
+      statusCell.font = { bold: true, color: { argb: isKritis ? 'FFBE123C' : 'FF065F46' } };
       statusCell.alignment = { horizontal: 'center', vertical: 'middle' };
-    }
-  });
-
-  // ──────────────────────────────────────────
-  // SHEET 4: RIWAYAT STOK
-  // ──────────────────────────────────────────
-  const ws4 = wb.addWorksheet('🔄 Riwayat Stok', { views: [{ state: 'frozen', ySplit: 1, showGridLines: false }] });
-  ws4.columns = [
-    { header: 'Waktu', key: 'time', width: 22 },
-    { header: 'Produk', key: 'product', width: 38 },
-    { header: 'Kategori', key: 'cat', width: 18 },
-    { header: 'Jenis', key: 'type', width: 14 },
-    { header: 'Qty', key: 'qty', width: 8 },
-    { header: 'Harga Satuan', key: 'price', width: 22 },
-    { header: 'Total Nilai', key: 'value', width: 22 },
-  ];
-  styleHeaderRow(ws4.getRow(1), STONE);
-
-  const typeColors: Record<string, { bg: string; fg: string }> = {
-    IN:         { bg: LIGHT_EMERALD, fg: '00065F46' },
-    OUT:        { bg: 'FFE0F2FE', fg: '000369A1' },
-    WASTE:      { bg: LIGHT_ROSE, fg: '00BE123C' },
-    ADJUSTMENT: { bg: LIGHT_AMBER, fg: '00B45309' },
-    OPNAME:     { bg: 'FFE0E7FF', fg: '003730B3' },
-  };
-
-  transactions.forEach((tx: any, i) => {
-    const price = tx.products?.price || 0;
-    const row = ws4.addRow({
-      time: tx.created_at ? new Date(tx.created_at).toLocaleString('id-ID') : '—',
-      product: tx.products?.name || '—',
-      cat: tx.products?.category || '—',
-      type: tx.type,
-      qty: tx.quantity,
-      price: currency(price),
-      value: currency(tx.quantity * price),
     });
-    styleDataRow(row, i % 2 === 0);
-    const tc = typeColors[tx.type];
-    if (tc) {
-      const typeCell = row.getCell(4);
-      typeCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: tc.bg } };
-      typeCell.font = { bold: true };
-      typeCell.alignment = { horizontal: 'center', vertical: 'middle' };
-    }
-  });
 
-  // ──────────────────────────────────────────
-  // GENERATE BUFFER & RETURN
   // ──────────────────────────────────────────
   const buffer = await wb.xlsx.writeBuffer();
-  const filename = `NEXUS-Finance-Report-${new Date().toISOString().slice(0, 10)}.xlsx`;
+  const filename = `NEXUS-Finance-Report-${meta.generatedAt.slice(0, 10)}.xlsx`;
 
   return new NextResponse(buffer, {
     headers: {

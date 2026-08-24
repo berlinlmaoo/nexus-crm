@@ -1,227 +1,383 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Download, TrendingUp, AlertCircle, ShoppingCart, RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useEffect, useMemo, useState } from "react";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend, LineChart, Line, Area, AreaChart
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ComposedChart,
+  Legend,
+  Line,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from "recharts";
+import {
+  AlertTriangle,
+  Boxes,
+  CalendarDays,
+  Download,
+  RefreshCw,
+  Store,
+  TrendingDown,
+  TrendingUp,
+  Wallet,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
 
-const COLORS = ['#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#f43f5e', '#06b6d4', '#84cc16', '#f97316'];
+const COLORS = ["#f59e0b", "#10b981", "#3b82f6", "#8b5cf6", "#f43f5e", "#06b6d4", "#84cc16", "#f97316"];
 
-const formatRp = (val: number) => `Rp ${(val / 1000000).toFixed(1)}jt`;
-const formatRpFull = (val: number) => `Rp ${val.toLocaleString('id-ID')}`;
+const ranges = [
+  { label: "30 Hari", value: "30d" },
+  { label: "90 Hari", value: "90d" },
+  { label: "180 Hari", value: "180d" },
+  { label: "1 Tahun", value: "365d" },
+];
 
-function CustomTooltip({ active, payload, label }: any) {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-white border border-stone-200 rounded-xl p-3 shadow-lg text-sm">
-        <p className="font-bold text-stone-700 mb-1">{label}</p>
-        {payload.map((p: any, i: number) => (
-          <p key={i} style={{ color: p.color }} className="font-semibold">
-            {p.name}: {formatRpFull(p.value)}
-          </p>
-        ))}
+const granularities = [
+  { label: "Harian", value: "day" },
+  { label: "Mingguan", value: "week" },
+  { label: "Bulanan", value: "month" },
+];
+
+const formatRp = (value: number) => `Rp ${Math.round(value || 0).toLocaleString("id-ID")}`;
+const formatShortRp = (value: number) => {
+  const n = Math.abs(value || 0);
+  if (n >= 1_000_000_000) return `Rp ${(value / 1_000_000_000).toFixed(1)}M`;
+  if (n >= 1_000_000) return `Rp ${(value / 1_000_000).toFixed(1)}jt`;
+  if (n >= 1_000) return `Rp ${(value / 1_000).toFixed(0)}rb`;
+  return `Rp ${Math.round(value || 0).toLocaleString("id-ID")}`;
+};
+const formatPercent = (value: number) => `${((value || 0) * 100).toFixed(1)}%`;
+
+function MoneyTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-lg border border-stone-200 bg-white p-3 text-xs shadow-lg">
+      <p className="mb-2 font-bold text-stone-700">{label}</p>
+      {payload.map((item: any) => (
+        <p key={item.dataKey} className="font-semibold" style={{ color: item.color }}>
+          {item.name}: {item.dataKey === "orders" ? item.value : formatRp(Number(item.value))}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+function KpiCard({ label, value, sub, icon: Icon, tone }: any) {
+  const tones: Record<string, string> = {
+    amber: "bg-amber-50 text-amber-700",
+    emerald: "bg-emerald-50 text-emerald-700",
+    sky: "bg-sky-50 text-sky-700",
+    rose: "bg-rose-50 text-rose-700",
+    violet: "bg-violet-50 text-violet-700",
+    stone: "bg-stone-100 text-stone-700",
+  };
+
+  return (
+    <div className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className={`rounded-md p-2 ${tones[tone] || tones.stone}`}>
+          <Icon className="h-5 w-5" />
+        </div>
       </div>
-    );
-  }
-  return null;
+      <p className="mt-4 text-xs font-bold uppercase tracking-wide text-stone-400">{label}</p>
+      <p className="mt-1 text-2xl font-black leading-tight text-stone-900">{value}</p>
+      {sub && <p className="mt-1 text-xs font-medium text-stone-500">{sub}</p>}
+    </div>
+  );
 }
 
 export default function FinanceReportPage() {
+  const [range, setRange] = useState("90d");
+  const [granularity, setGranularity] = useState("day");
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/report/finance');
+      const res = await fetch(`/api/report/finance?range=${range}&granularity=${granularity}`);
       const json = await res.json();
       setData(json);
-    } catch (e) {
-      console.error("Failed to fetch finance report:", e);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    fetchData();
+  }, [range, granularity]);
+
+  const kpis = data?.kpis;
+  const latestTrend = useMemo(() => data?.trend?.slice(-18) || [], [data]);
 
   const handleExportExcel = () => {
-    // Trigger download from server-side ExcelJS export (supports colors, borders, styling)
-    const a = document.createElement('a');
-    a.href = '/api/report/export';
+    const a = document.createElement("a");
+    a.href = `/api/report/export?range=${range}&granularity=${granularity}`;
     a.download = `NEXUS-Finance-Report-${new Date().toISOString().slice(0, 10)}.xlsx`;
     a.click();
   };
 
-  if (loading) {
+  if (loading && !data) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 gap-4">
-        <div className="h-10 w-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
-        <p className="text-stone-500 font-medium">Mengambil data laporan keuangan...</p>
+      <div className="flex h-72 flex-col items-center justify-center gap-4">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-amber-500 border-t-transparent" />
+        <p className="font-medium text-stone-500">Mengambil data finance restoran...</p>
       </div>
     );
   }
 
-  if (!data) return <p className="text-center text-rose-500 py-20">Gagal memuat laporan.</p>;
-
-  const { kpis, assetByCategory, transactionTrend, poTrend, topProducts } = data;
+  if (!data?.kpis) {
+    return <p className="py-20 text-center text-rose-500">Gagal memuat dashboard finance.</p>;
+  }
 
   const kpiCards = [
-    { label: 'Total Nilai Aset', value: formatRpFull(kpis.totalAssetValue), icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-100' },
-    { label: 'Total Belanja PO', value: formatRpFull(kpis.totalApprovedPOSpend), icon: ShoppingCart, color: 'text-violet-600', bg: 'bg-violet-100' },
-    { label: 'Item Kritis', value: String(kpis.criticalItems), sub: 'butuh restock', icon: AlertCircle, color: 'text-rose-600', bg: 'bg-rose-100' },
-    { label: 'Total Transaksi', value: String(kpis.totalTransactions), sub: 'semua pergerakan', icon: RefreshCw, color: 'text-sky-600', bg: 'bg-sky-100' },
+    {
+      label: "Gross Sales",
+      value: formatRp(kpis.grossSales),
+      sub: "Dari order_amount Olsera",
+      icon: TrendingUp,
+      tone: "emerald",
+    },
+    {
+      label: "Net Collected",
+      value: formatRp(kpis.netSales),
+      sub: `${kpis.orderCount.toLocaleString("id-ID")} order selesai`,
+      icon: Wallet,
+      tone: "sky",
+    },
+    {
+      label: "Gross Profit Est.",
+      value: formatRp(kpis.grossProfitEstimate),
+      sub: `Margin ${formatPercent(kpis.grossMargin)}`,
+      icon: TrendingUp,
+      tone: "amber",
+    },
+    {
+      label: "COGS Nexus",
+      value: formatRp(kpis.cogsEstimate),
+      sub: "Stock OUT + WASTE dari Nexus",
+      icon: TrendingDown,
+      tone: "rose",
+    },
+    {
+      label: "Nilai Stok",
+      value: formatRp(kpis.stockAssetValue),
+      sub: `${kpis.productCount.toLocaleString("id-ID")} produk Nexus`,
+      icon: Boxes,
+      tone: "violet",
+    },
+    {
+      label: "Waste Value",
+      value: formatRp(kpis.wasteValue),
+      sub: "Kerugian stok tercatat",
+      icon: AlertTriangle,
+      tone: "rose",
+    },
+    {
+      label: "AOV",
+      value: formatRp(kpis.averageOrderValue),
+      sub: "Rata-rata net per order",
+      icon: CalendarDays,
+      tone: "stone",
+    },
+    {
+      label: "Stok Kritis",
+      value: kpis.criticalItems.toLocaleString("id-ID"),
+      sub: "Item <= minimum stock",
+      icon: AlertTriangle,
+      tone: "amber",
+    },
   ];
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-stone-900">Finance Report</h2>
-          <p className="text-stone-500 mt-1">Analisis nilai aset, pengeluaran PO, dan pergerakan stok.</p>
+          <h2 className="text-2xl font-bold tracking-tight text-stone-900">Finance Dashboard</h2>
+          <p className="mt-1 text-sm text-stone-500">
+            Revenue dari Olsera, stok dan COGS dari Nexus CRM.
+          </p>
         </div>
-        <div className="flex gap-2">
+
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex rounded-lg border border-stone-200 bg-white p-1">
+            {ranges.map((item) => (
+              <button
+                key={item.value}
+                onClick={() => setRange(item.value)}
+                className={`rounded-md px-3 py-2 text-xs font-bold transition ${
+                  range === item.value ? "bg-stone-900 text-white" : "text-stone-500 hover:bg-stone-100"
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex rounded-lg border border-stone-200 bg-white p-1">
+            {granularities.map((item) => (
+              <button
+                key={item.value}
+                onClick={() => setGranularity(item.value)}
+                className={`rounded-md px-3 py-2 text-xs font-bold transition ${
+                  granularity === item.value ? "bg-amber-500 text-white" : "text-stone-500 hover:bg-stone-100"
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
           <Button onClick={fetchData} variant="outline" className="bg-white font-semibold text-stone-700">
-            <RefreshCw className="h-4 w-4 mr-2" /> Refresh
+            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            Refresh
           </Button>
-          <Button onClick={handleExportExcel} className="bg-amber-500 hover:bg-amber-600 text-white font-semibold shadow-md shadow-amber-500/20">
-            <Download className="h-4 w-4 mr-2" /> Export Excel
+          <Button onClick={handleExportExcel} className="bg-amber-500 font-semibold text-white hover:bg-amber-600">
+            <Download className="mr-2 h-4 w-4" />
+            Export
           </Button>
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {kpiCards.map((kpi) => (
-          <div key={kpi.label} className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
-            <div className="flex items-start justify-between mb-4">
-              <div className={`${kpi.bg} p-2 rounded-lg`}>
-                <kpi.icon className={`h-5 w-5 ${kpi.color}`} />
-              </div>
-            </div>
-            <p className="text-xs font-bold uppercase tracking-wider text-stone-400">{kpi.label}</p>
-            <p className={`text-2xl font-black mt-1 ${kpi.color} leading-tight`}>{kpi.value}</p>
-            {kpi.sub && <p className="text-xs text-stone-400 mt-1">{kpi.sub}</p>}
-          </div>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {kpiCards.map((card) => (
+          <KpiCard key={card.label} {...card} />
         ))}
       </div>
 
-      {/* Charts Row 1 */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        
-        {/* Asset by Category — Pie */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-stone-200 shadow-sm p-6">
-          <h3 className="font-bold text-stone-800 mb-1">Distribusi Aset per Kategori</h3>
-          <p className="text-xs text-stone-400 mb-6">Nilai stok berdasarkan kategori produk</p>
-          <ResponsiveContainer width="100%" height={260}>
-            <PieChart>
-              <Pie
-                data={assetByCategory}
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={100}
-                paddingAngle={3}
-                dataKey="value"
-              >
-                {assetByCategory.map((_: any, index: number) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip formatter={(val: any) => formatRpFull(Number(val))} />
-              <Legend
-                formatter={(value) => <span className="text-xs font-bold text-stone-600">{value}</span>}
-              />
-            </PieChart>
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
+        <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm xl:col-span-3">
+          <div className="mb-5">
+            <h3 className="font-bold text-stone-900">Revenue vs COGS Nexus</h3>
+            <p className="mt-1 text-xs text-stone-500">
+              Net collected dari Olsera dibanding estimasi COGS dari transaksi stok Nexus.
+            </p>
+          </div>
+          <ResponsiveContainer width="100%" height={320}>
+            <ComposedChart data={latestTrend} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <CartesianGrid stroke="#f1f5f9" strokeDasharray="3 3" />
+              <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#78716c" }} />
+              <YAxis tickFormatter={formatShortRp} tick={{ fontSize: 11, fill: "#78716c" }} />
+              <Tooltip content={<MoneyTooltip />} />
+              <Legend />
+              <Bar dataKey="netSales" name="Net Collected" fill="#10b981" radius={[5, 5, 0, 0]} />
+              <Bar dataKey="cogsEstimate" name="COGS Nexus" fill="#f43f5e" radius={[5, 5, 0, 0]} />
+              <Line type="monotone" dataKey="grossProfitEstimate" name="Gross Profit Est." stroke="#f59e0b" strokeWidth={3} dot={false} />
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
 
-        {/* Transaction Trend — Area */}
-        <div className="lg:col-span-3 bg-white rounded-2xl border border-stone-200 shadow-sm p-6">
-          <h3 className="font-bold text-stone-800 mb-1">Tren Pergerakan Stok (14 Hari Terakhir)</h3>
-          <p className="text-xs text-stone-400 mb-6">Nilai barang masuk, keluar, dan waste dalam Rupiah</p>
+        <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm xl:col-span-2">
+          <div className="mb-5">
+            <h3 className="font-bold text-stone-900">Revenue per Outlet</h3>
+            <p className="mt-1 text-xs text-stone-500">Berdasarkan app/store Olsera.</p>
+          </div>
+          <div className="space-y-4">
+            {data.byStore.map((store: any) => {
+              const max = Math.max(...data.byStore.map((row: any) => row.netSales), 1);
+              return (
+                <div key={store.name}>
+                  <div className="mb-1 flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <Store className="h-4 w-4 shrink-0 text-amber-500" />
+                      <p className="truncate text-sm font-bold text-stone-800">{store.name}</p>
+                    </div>
+                    <p className="text-xs font-black text-stone-900">{formatRp(store.netSales)}</p>
+                  </div>
+                  <div className="h-2 rounded-full bg-stone-100">
+                    <div
+                      className="h-2 rounded-full bg-amber-500"
+                      style={{ width: `${Math.max(4, (store.netSales / max) * 100)}%` }}
+                    />
+                  </div>
+                  <p className="mt-1 text-[11px] font-medium text-stone-400">{store.orders.toLocaleString("id-ID")} order</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
+          <div className="mb-5">
+            <h3 className="font-bold text-stone-900">Gross vs Net Sales</h3>
+            <p className="mt-1 text-xs text-stone-500">Periode mengikuti filter di atas.</p>
+          </div>
           <ResponsiveContainer width="100%" height={260}>
-            <AreaChart data={transactionTrend} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
+            <AreaChart data={latestTrend} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <defs>
-                <linearGradient id="colorIN" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.15}/>
-                  <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                <linearGradient id="grossFill" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
+                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                 </linearGradient>
-                <linearGradient id="colorOUT" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15}/>
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                </linearGradient>
-                <linearGradient id="colorWASTE" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.15}/>
-                  <stop offset="95%" stopColor="#f43f5e" stopOpacity={0}/>
+                <linearGradient id="netFill" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
+                  <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#94a3b8' }} />
-              <YAxis tickFormatter={(v) => `${(v/1000).toFixed(0)}k`} tick={{ fontSize: 11, fill: '#94a3b8' }} />
-              <Tooltip content={<CustomTooltip />} />
-              <Area type="monotone" dataKey="IN" name="Masuk" stroke="#10b981" strokeWidth={2} fill="url(#colorIN)" />
-              <Area type="monotone" dataKey="OUT" name="Keluar" stroke="#3b82f6" strokeWidth={2} fill="url(#colorOUT)" />
-              <Area type="monotone" dataKey="WASTE" name="Waste" stroke="#f43f5e" strokeWidth={2} fill="url(#colorWASTE)" />
+              <CartesianGrid stroke="#f1f5f9" strokeDasharray="3 3" />
+              <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#78716c" }} />
+              <YAxis tickFormatter={formatShortRp} tick={{ fontSize: 11, fill: "#78716c" }} />
+              <Tooltip content={<MoneyTooltip />} />
               <Legend />
+              <Area type="monotone" dataKey="grossSales" name="Gross Sales" stroke="#3b82f6" fill="url(#grossFill)" strokeWidth={2} />
+              <Area type="monotone" dataKey="netSales" name="Net Collected" stroke="#10b981" fill="url(#netFill)" strokeWidth={2} />
             </AreaChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
+          <div className="mb-5">
+            <h3 className="font-bold text-stone-900">Nilai Stok per Kategori</h3>
+            <p className="mt-1 text-xs text-stone-500">Berdasarkan stok aktif di Nexus CRM.</p>
+          </div>
+          <ResponsiveContainer width="100%" height={260}>
+            <PieChart>
+              <Pie data={data.stockByCategory} dataKey="stockValue" nameKey="name" innerRadius={58} outerRadius={96} paddingAngle={3}>
+                {data.stockByCategory.map((_: any, index: number) => (
+                  <Cell key={index} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(value: any) => formatRp(Number(value))} />
+              <Legend formatter={(value) => <span className="text-xs font-bold text-stone-600">{value}</span>} />
+            </PieChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      {/* Charts Row 2 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-        {/* PO Spending Trend */}
-        <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-6">
-          <h3 className="font-bold text-stone-800 mb-1">Pengeluaran Purchase Order</h3>
-          <p className="text-xs text-stone-400 mb-6">Total nilai PO yang disetujui per bulan</p>
-          {poTrend.length > 0 ? (
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={poTrend} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#94a3b8' }} />
-                <YAxis tickFormatter={(v) => `${(v/1000).toFixed(0)}k`} tick={{ fontSize: 11, fill: '#94a3b8' }} />
-                <Tooltip formatter={(val: any) => formatRpFull(Number(val))} />
-                <Bar dataKey="total" name="Total PO" fill="#8b5cf6" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="h-[220px] flex items-center justify-center text-stone-400 text-sm">
-              Belum ada PO yang disetujui.
-            </div>
-          )}
+      <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
+        <div className="mb-4">
+          <h3 className="font-bold text-stone-900">Top Produk Berdasarkan Nilai Stok</h3>
+          <p className="mt-1 text-xs text-stone-500">Harga x current stock dari Nexus CRM.</p>
         </div>
-
-        {/* Top 10 Products by Value — Table */}
-        <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-6">
-          <h3 className="font-bold text-stone-800 mb-1">Top 10 Produk — Nilai Tertinggi</h3>
-          <p className="text-xs text-stone-400 mb-4">Berdasarkan harga × stok saat ini</p>
-          <div className="space-y-2">
-            {topProducts.map((p: any, i: number) => (
-              <div key={p.name} className="flex items-center gap-3">
-                <span className="text-xs font-black text-stone-300 w-5 text-right">{i + 1}</span>
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-center mb-1">
-                    <p className="text-xs font-bold text-stone-700 truncate pr-2">{p.name}</p>
-                    <p className="text-xs font-black text-amber-600 whitespace-nowrap">
-                      {formatRpFull(p.value)}
-                    </p>
-                  </div>
-                  <div className="w-full bg-stone-100 rounded-full h-1.5">
-                    <div
-                      className="bg-amber-400 h-1.5 rounded-full"
-                      style={{ width: `${(p.value / topProducts[0].value) * 100}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[760px] text-sm">
+            <thead>
+              <tr className="border-b border-stone-100 text-left text-xs uppercase tracking-wide text-stone-400">
+                <th className="py-3 pr-3 font-bold">Produk</th>
+                <th className="py-3 pr-3 font-bold">Kategori</th>
+                <th className="py-3 pr-3 text-right font-bold">Stok</th>
+                <th className="py-3 text-right font-bold">Nilai Stok</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-stone-50">
+              {data.topStockValue.map((product: any) => (
+                <tr key={`${product.name}-${product.category}`}>
+                  <td className="py-3 pr-3 font-bold text-stone-800">{product.name}</td>
+                  <td className="py-3 pr-3 text-stone-500">{product.category || "Lainnya"}</td>
+                  <td className="py-3 pr-3 text-right font-semibold text-stone-700">{product.stock.toLocaleString("id-ID")}</td>
+                  <td className="py-3 text-right font-black text-amber-600">{formatRp(product.value)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

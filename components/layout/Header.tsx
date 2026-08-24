@@ -195,7 +195,7 @@ export function Header({ onMenuClick, user, restaurantName, logoUrl }: HeaderPro
           <DropdownMenu>
             <DropdownMenuTrigger>
               <Avatar className="h-9 w-9 border-2 border-stone-100 ring-2 ring-transparent transition-all hover:ring-amber-500 cursor-pointer shadow-sm">
-                <AvatarImage src={localPhoto || user?.photo_url || `https://i.pravatar.cc/150?u=${user?.id}`} alt={user?.name} className="object-cover" />
+                <AvatarImage src={localPhoto || user?.photo_url || undefined} alt={user?.name} className="object-cover" />
                 <AvatarFallback className="bg-amber-100 text-amber-700 font-bold text-xs">{initials}</AvatarFallback>
               </Avatar>
             </DropdownMenuTrigger>

@@ -44,3 +44,12 @@ cloudflared/*.pem
 # Cadangan database. Isinya data bisnis (dan pernah data pelamar), dan
 # sekali masuk riwayat git nggak bisa ditarik dari klon orang lain.
 backups/
+
+# Environment-specific config, keys and certificates (never commit)
+cloudflared/config.yml
+supabase/config.toml
+supabase/signing_keys.json
+kong/
+.newpub
+.newsec
+backups/

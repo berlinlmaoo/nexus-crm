@@ -11,7 +11,7 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 # NEXT_PUBLIC_* are inlined at build time and used by BOTH the browser and the
-# server. Override the .env.local value (which may be a Tailscale IP the
+# server. Override the .env.local value (which may be an address the
 # container can't reach) with a host address reachable from browser + container.
 # process.env wins over .env.local during `next build`.
 ARG NEXT_PUBLIC_SUPABASE_URL
